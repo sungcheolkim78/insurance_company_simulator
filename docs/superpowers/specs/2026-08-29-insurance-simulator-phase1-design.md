@@ -31,6 +31,11 @@
 Django, Node/NestJS, 실시간 게임서버 프레임워크(Colyseus 등)는 이 게임의 요청/응답형 턴제
 싱글플레이 구조에 이점이 없어 채택하지 않는다 (근거는 브레인스토밍 대화 참고).
 
+로컬 실행 환경은 컨테이너로 표준화한다. `backend/`, `frontend/`에 각각 Dockerfile을 두고,
+레포 루트의 `docker-compose.yml`로 두 서비스를 함께 기동한다. 실행은 `podman-compose up --build`
+로 바로 되어야 하며(Docker Desktop 없이도 동작), 별도의 프로덕션 배포 구성(리버스 프록시, HTTPS 등)은
+Phase 1 범위 밖이다.
+
 ## 3. 시간 모델 & 게임 종료 조건
 
 - 1턴 = 1개월, 총 120턴(10년)로 게임 1회차가 종료된다.
@@ -227,8 +232,12 @@ backend/
     test_api_*.py       # FastAPI TestClient 통합테스트
 frontend/
   src/ ... (8절 참고)
+  Dockerfile
 docs/superpowers/specs/  # 이 스펙 및 향후 스펙 문서
+docker-compose.yml        # backend/frontend 컨테이너를 함께 기동 (podman-compose 호환)
 ```
+
+`backend/Dockerfile`도 위 `backend/` 트리 최상위에 위치한다.
 
 ## 10. 테스트 전략
 
