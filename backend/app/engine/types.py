@@ -53,6 +53,10 @@ class CohortState:
     in_force_count: float
     unit_size: float
     reserve_balance: float
+    csm_balance: float = 0.0
+    csm_locked_in_rate_monthly: float = 0.0
+    csm_straight_line_release: float = 0.0
+    csm_periods_remaining: int = 0
 
 
 @dataclass
@@ -92,6 +96,7 @@ class CohortFlows:
     maturity_payouts: float = 0.0
     deaths: float = 0.0
     lapses: float = 0.0
+    csm_release: float = 0.0
 
 
 @dataclass
@@ -124,6 +129,11 @@ class FinancialSnapshot:
     premium_income_by_product: dict[str, float]
     new_business_premium_by_channel: dict[str, float]
     commission_expense_by_channel: dict[str, float]
+    total_csm: float
+    csm_change: float
+    csm_release: float
+    csm_new_business: float
+    onerous_loss: float
 
 
 @dataclass
