@@ -5,6 +5,7 @@ from .config import (
     DEFAULT_CHANNEL_CONFIGS,
     DEFAULT_SPLITS,
     ELASTICITY,
+    LAPSE_PRICE_SENSITIVITY,
     MORTALITY_AGING_RATE,
     UNDERWRITING_MORTALITY_COEF,
 )
@@ -15,6 +16,10 @@ def effective_cost_rate_annual(product: ProductConfig, duration_turns: int, unde
     duration_years = duration_turns / 12
     aging = product.base_cost_rate_annual * (MORTALITY_AGING_RATE**duration_years)
     return aging * (1 - UNDERWRITING_MORTALITY_COEF * underwriting_strictness)
+
+
+def lapse_rate_monthly(product: ProductConfig, pricing_multiplier: float) -> float:
+    return (product.base_lapse_rate_annual * pricing_multiplier**LAPSE_PRICE_SENSITIVITY) / 12
 
 
 def gross_premium_per_policy_monthly(

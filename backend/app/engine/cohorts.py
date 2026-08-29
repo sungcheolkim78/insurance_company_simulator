@@ -1,6 +1,6 @@
-from .config import DEFAULT_PRODUCT_CONFIGS, LAPSE_PRICE_SENSITIVITY
+from .config import DEFAULT_PRODUCT_CONFIGS
 from .csm import step_csm_cohort
-from .products import effective_cost_rate_annual, gross_premium_per_policy_monthly
+from .products import effective_cost_rate_annual, gross_premium_per_policy_monthly, lapse_rate_monthly
 from .types import CohortFlows, CohortState, Decision, ProductCode
 
 
@@ -23,8 +23,7 @@ def step_cohort(
     deaths = cohort.in_force_count * decrement_rate_monthly
     death_claims = deaths * product.unit_size
 
-    lapse_rate_monthly = (product.base_lapse_rate_annual * pricing_multiplier**LAPSE_PRICE_SENSITIVITY) / 12
-    lapses = cohort.in_force_count * lapse_rate_monthly
+    lapses = cohort.in_force_count * lapse_rate_monthly(product, pricing_multiplier)
 
     reserve_per_policy = cohort.reserve_balance / cohort.in_force_count if cohort.in_force_count > 0 else 0.0
     death_reserve_release = deaths * reserve_per_policy

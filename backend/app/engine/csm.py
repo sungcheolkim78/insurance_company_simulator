@@ -1,8 +1,8 @@
 import math
 from dataclasses import dataclass
 
-from .config import CSM_RISK_ADJUSTMENT_COEF, CSM_WHOLE_LIFE_HORIZON_CAP_TURNS, LAPSE_PRICE_SENSITIVITY
-from .products import effective_cost_rate_annual, gross_premium_per_policy_monthly
+from .config import CSM_RISK_ADJUSTMENT_COEF, CSM_WHOLE_LIFE_HORIZON_CAP_TURNS
+from .products import effective_cost_rate_annual, gross_premium_per_policy_monthly, lapse_rate_monthly
 from .types import ProductCode, ProductConfig
 
 
@@ -13,10 +13,6 @@ class CsmInitialResult:
     locked_in_rate_monthly: float
     straight_line_release: float
     periods_remaining: int
-
-
-def _lapse_rate_monthly(product: ProductConfig, pricing_multiplier: float) -> float:
-    return (product.base_lapse_rate_annual * pricing_multiplier**LAPSE_PRICE_SENSITIVITY) / 12
 
 
 def compute_csm_initial(
@@ -31,7 +27,7 @@ def compute_csm_initial(
         return CsmInitialResult(0.0, 0.0, 0.0, 0.0, 0)
 
     r_lock_monthly = market_rate_annual / 12
-    lapse_monthly = _lapse_rate_monthly(product, pricing_multiplier)
+    lapse_monthly = lapse_rate_monthly(product, pricing_multiplier)
     if product.code == ProductCode.WHOLE_LIFE:
         mortality_monthly = effective_cost_rate_annual(product, 0, underwriting_strictness) / 12
     else:
