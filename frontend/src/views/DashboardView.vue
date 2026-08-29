@@ -9,6 +9,7 @@ import MonitoringPanel from '../components/MonitoringPanel.vue'
 import FinancialStatements from '../components/FinancialStatements.vue'
 import DecisionPanel from '../components/DecisionPanel.vue'
 import TurnControl from '../components/TurnControl.vue'
+import GameSettingsPanel from '../components/GameSettingsPanel.vue'
 
 const props = defineProps({ id: String })
 const store = useGameStore()
@@ -16,6 +17,7 @@ const router = useRouter()
 const lastDecision = ref(null)
 const isBusy = ref(false)
 const errorMessage = ref('')
+const showSettings = ref(false)
 
 const prevSnapshot = computed(() =>
   store.history.length >= 2 ? store.history[store.history.length - 2] : null,
@@ -66,19 +68,29 @@ async function handleEndGame() {
   <div v-if="store.snapshot" class="mx-auto max-w-6xl space-y-6 p-8">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-slate-800">턴 {{ store.currentTurn }} / {{ store.gameLengthTurns }}</h1>
-      <button
-        class="rounded border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-        :disabled="isBusy"
-        @click="handleEndGame"
-      >
-        게임 종료 &amp; 새 시뮬레이션
-      </button>
+      <div class="flex gap-2">
+        <button
+          class="rounded border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          @click="showSettings = true"
+        >
+          설정
+        </button>
+        <button
+          class="rounded border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+          :disabled="isBusy"
+          @click="handleEndGame"
+        >
+          게임 종료 &amp; 새 시뮬레이션
+        </button>
+      </div>
     </div>
     <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
     <KpiCards :snapshot="store.snapshot" />
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div class="space-y-6">
         <MonitoringPanel :snapshot="store.snapshot" :prev-snapshot="prevSnapshot" :decision="lastDecision" />
+      </div>
+      <div class="space-y-6">
         <HistoryCharts :history="store.history" />
       </div>
       <div class="space-y-6">
@@ -87,6 +99,12 @@ async function handleEndGame() {
         <TurnControl :disabled="isBusy || store.status !== 'running'" @run-turns="runTurns" />
       </div>
     </div>
+    <GameSettingsPanel
+      v-if="showSettings"
+      :config="store.config"
+      :game-length-turns="store.gameLengthTurns"
+      @close="showSettings = false"
+    />
   </div>
   <div v-else class="p-8 text-slate-500">불러오는 중...</div>
 </template>

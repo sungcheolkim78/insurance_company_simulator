@@ -7,18 +7,36 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const props = defineProps({ history: Array })
 
-const chartData = computed(() => ({
-  labels: props.history.map((row) => row.turn),
-  datasets: [
-    { label: '자본총계', data: props.history.map((row) => row.equity), borderColor: '#1e293b', tension: 0.2 },
-  ],
-}))
+const labels = computed(() => props.history.map((row) => row.turn))
+
+function buildChartData(label, field, color) {
+  return computed(() => ({
+    labels: labels.value,
+    datasets: [{ label, data: props.history.map((row) => row[field]), borderColor: color, tension: 0.2 }],
+  }))
+}
+
+const equityChartData = buildChartData('자본총계', 'equity', '#1e293b')
+const netIncomeChartData = buildChartData('당기순이익', 'net_income', '#0284c7')
+const inForceChartData = buildChartData('총 보유계약수', 'total_in_force', '#16a34a')
+const csmChartData = buildChartData('총 CSM 잔액', 'total_csm', '#a855f7')
 
 const chartOptions = { responsive: true, maintainAspectRatio: false }
 </script>
 
 <template>
-  <div class="h-64 rounded border border-slate-200 p-4">
-    <Line :data="chartData" :options="chartOptions" />
+  <div class="space-y-4">
+    <div class="h-48 rounded border border-slate-200 p-4">
+      <Line :data="equityChartData" :options="chartOptions" />
+    </div>
+    <div class="h-48 rounded border border-slate-200 p-4">
+      <Line :data="netIncomeChartData" :options="chartOptions" />
+    </div>
+    <div class="h-48 rounded border border-slate-200 p-4">
+      <Line :data="inForceChartData" :options="chartOptions" />
+    </div>
+    <div class="h-48 rounded border border-slate-200 p-4">
+      <Line :data="csmChartData" :options="chartOptions" />
+    </div>
   </div>
 </template>
