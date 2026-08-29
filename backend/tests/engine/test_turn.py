@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from app.engine.turn import run_turn
-from app.engine.types import AssetBalances, ChannelCode, Decision, MarketState, ProductCode, StockRegime
+from app.engine.types import AssetBalances, ChannelCode, Decision, GameStatus, MarketState, ProductCode, StockRegime
 
 
 def base_decision() -> Decision:
@@ -53,3 +53,14 @@ def test_run_turn_preserves_accounting_identity_across_turns():
         total_reserve = sum(c.reserve_balance for c in result.cohorts)
         assert result.assets.total == pytest.approx(total_reserve + result.snapshot.equity, rel=1e-9)
         market, assets, equity, cohorts = result.market_state, result.assets, result.snapshot.equity, result.cohorts
+
+
+def test_run_turn_marks_completed_at_game_length():
+    rng = np.random.default_rng(42)
+    market = MarketState(turn=119, interest_rate=0.03, stock_regime=StockRegime.NORMAL, stock_return_realized=0.01)
+    assets = AssetBalances(deposit=5_000_000_000.0, bond=3_000_000_000.0, stock=2_000_000_000.0)
+
+    result = run_turn(119, [], market, assets, 10_000_000_000.0, base_decision(), rng)
+
+    assert result.snapshot.turn == 120
+    assert result.snapshot.status == GameStatus.COMPLETED

@@ -1,4 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+PRODUCT_KEYS = {"whole_life", "savings"}
+CHANNEL_KEYS = {"captive", "ga"}
+ASSET_KEYS = {"deposit", "bond", "stock"}
 
 
 class CreateGameRequest(BaseModel):
@@ -46,6 +50,63 @@ class TurnRequest(BaseModel):
     marketing_spend: dict[str, float]
     asset_allocation: dict[str, float]
     dividend_payout: float = 0.0
+
+    @field_validator("pricing_multiplier")
+    @classmethod
+    def _pricing_multiplier_positive(cls, value: dict[str, float]) -> dict[str, float]:
+        for v in value.values():
+            if v <= 0:
+                raise ValueError("pricing_multiplier values must be greater than 0")
+        return value
+
+    @field_validator("underwriting_strictness")
+    @classmethod
+    def _strictness_range(cls, value: dict[str, float]) -> dict[str, float]:
+        for v in value.values():
+            if not 0.0 <= v <= 1.0:
+                raise ValueError("underwriting_strictness values must be between 0 and 1")
+        return value
+
+    @field_validator("commission_rate", "marketing_spend")
+    @classmethod
+    def _non_negative(cls, value: dict[str, float]) -> dict[str, float]:
+        for v in value.values():
+            if v < 0:
+                raise ValueError("values must be non-negative")
+        return value
+
+    @field_validator("dividend_payout")
+    @classmethod
+    def _dividend_non_negative(cls, value: float) -> float:
+        if value < 0:
+            raise ValueError("dividend_payout must be non-negative")
+        return value
+
+    @field_validator("pricing_multiplier", "underwriting_strictness")
+    @classmethod
+    def _product_keys(cls, value: dict[str, float]) -> dict[str, float]:
+        if set(value.keys()) != PRODUCT_KEYS:
+            raise ValueError(f"keys must be exactly {sorted(PRODUCT_KEYS)}")
+        return value
+
+    @field_validator("commission_rate", "marketing_spend")
+    @classmethod
+    def _channel_keys(cls, value: dict[str, float]) -> dict[str, float]:
+        if set(value.keys()) != CHANNEL_KEYS:
+            raise ValueError(f"keys must be exactly {sorted(CHANNEL_KEYS)}")
+        return value
+
+    @field_validator("asset_allocation")
+    @classmethod
+    def _asset_allocation_valid(cls, value: dict[str, float]) -> dict[str, float]:
+        if set(value.keys()) != ASSET_KEYS:
+            raise ValueError(f"keys must be exactly {sorted(ASSET_KEYS)}")
+        for v in value.values():
+            if v < 0:
+                raise ValueError("asset_allocation values must be non-negative")
+        if abs(sum(value.values()) - 1.0) > 1e-6:
+            raise ValueError("asset_allocation values must sum to 1.0")
+        return value
 
 
 class ConfigResponse(BaseModel):

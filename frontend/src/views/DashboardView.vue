@@ -12,6 +12,7 @@ const store = useGameStore()
 const router = useRouter()
 const lastDecision = ref(null)
 const isBusy = ref(false)
+const errorMessage = ref('')
 
 onMounted(() => store.load(Number(props.id)))
 
@@ -23,12 +24,18 @@ async function handleDecisionSubmit(decision) {
 async function runTurns(count) {
   if (!lastDecision.value || isBusy.value) return
   isBusy.value = true
-  for (let i = 0; i < count; i++) {
-    if (store.status !== 'running') break
-    // eslint-disable-next-line no-await-in-loop
-    await store.advanceTurn(lastDecision.value)
+  errorMessage.value = ''
+  try {
+    for (let i = 0; i < count; i++) {
+      if (store.status !== 'running') break
+      // eslint-disable-next-line no-await-in-loop
+      await store.advanceTurn(lastDecision.value)
+    }
+  } catch (err) {
+    errorMessage.value = '턴 처리에 실패했습니다. 입력값을 확인하고 다시 시도해주세요.'
+  } finally {
+    isBusy.value = false
   }
-  isBusy.value = false
   if (store.status !== 'running') {
     router.push(`/games/${props.id}/result`)
   }
@@ -38,6 +45,7 @@ async function runTurns(count) {
 <template>
   <div v-if="store.snapshot" class="mx-auto max-w-4xl space-y-6 p-8">
     <h1 class="text-2xl font-bold text-slate-800">턴 {{ store.currentTurn }} / 120</h1>
+    <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
     <KpiCards :snapshot="store.snapshot" />
     <HistoryCharts :history="store.history" />
     <DecisionPanel @submit="handleDecisionSubmit" />

@@ -19,4 +19,5 @@ onMounted(() => {
     <p class="text-3xl font-bold">{{ new Intl.NumberFormat('ko-KR').format(Math.round(store.snapshot.equity)) }}원</p>
     <router-link to="/" class="mt-6 inline-block text-sm text-slate-500 underline">새 게임 시작</router-link>
   </div>
+  <div v-else class="p-8 text-slate-500">불러오는 중...</div>
 </template>

@@ -13,6 +13,9 @@ export const useGameStore = defineStore('game', {
   actions: {
     async load(gameId) {
       this.gameId = gameId
+      this.snapshot = null
+      this.history = []
+      this.status = 'running'
       const [game, history, config] = await Promise.all([
         getGame(gameId),
         getHistory(gameId),

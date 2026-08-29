@@ -45,3 +45,43 @@ def test_delete_game_removes_it(client):
     response = client.delete(f"/games/{game_id}")
     assert response.status_code == 200
     assert client.get(f"/games/{game_id}").status_code == 404
+
+
+def test_submit_turn_rejects_zero_pricing_multiplier(client):
+    create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
+    game_id = create.json()["id"]
+    payload = turn_payload()
+    payload["pricing_multiplier"]["whole_life"] = 0.0
+
+    response = client.post(f"/games/{game_id}/turn", json=payload)
+    assert response.status_code == 422
+
+
+def test_submit_turn_rejects_negative_dividend(client):
+    create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
+    game_id = create.json()["id"]
+    payload = turn_payload()
+    payload["dividend_payout"] = -1_000_000_000.0
+
+    response = client.post(f"/games/{game_id}/turn", json=payload)
+    assert response.status_code == 422
+
+
+def test_submit_turn_rejects_asset_allocation_not_summing_to_one(client):
+    create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
+    game_id = create.json()["id"]
+    payload = turn_payload()
+    payload["asset_allocation"] = {"deposit": 1.0, "bond": 1.0, "stock": 1.0}
+
+    response = client.post(f"/games/{game_id}/turn", json=payload)
+    assert response.status_code == 422
+
+
+def test_submit_turn_rejects_missing_product_key(client):
+    create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
+    game_id = create.json()["id"]
+    payload = turn_payload()
+    del payload["pricing_multiplier"]["savings"]
+
+    response = client.post(f"/games/{game_id}/turn", json=payload)
+    assert response.status_code == 422
