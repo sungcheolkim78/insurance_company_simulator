@@ -905,17 +905,18 @@ def test_compute_snapshot_bankrupt_status():
         surrender_payouts=0.0,
         maturity_payouts=0.0,
         commission_expense=0.0,
-        marketing_expense=0.0,
+        marketing_expense=5_000_000.0,
         opex=0.0,
         reserve_change=0.0,
         equity_start=1_000_000.0,
         dividend_payout=0.0,
         assets=AssetBalances(deposit=0.0, bond=0.0, stock=0.0),
-        total_reserve=2_000_000.0,
+        total_reserve=0.0,
     )
-    # equity_start - total_reserve makes this insolvent once reserve exceeds assets/equity path
-    assert snapshot.equity == pytest.approx(1_000_000.0)
-    assert snapshot.status == GameStatus.RUNNING
+    # marketing_expense alone exceeds equity_start, driving net_income and equity negative
+    assert snapshot.net_income == pytest.approx(-5_000_000.0)
+    assert snapshot.equity == pytest.approx(-4_000_000.0)
+    assert snapshot.status == GameStatus.BANKRUPT
 ```
 
 - [ ] **Step 2: Run test, verify it fails**
