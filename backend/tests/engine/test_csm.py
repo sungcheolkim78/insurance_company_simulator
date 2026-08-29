@@ -1,7 +1,7 @@
 import pytest
 
 from app.engine.config import DEFAULT_PRODUCT_CONFIGS
-from app.engine.csm import compute_csm_initial
+from app.engine.csm import compute_csm_initial, step_csm_cohort
 from app.engine.types import ProductCode
 
 
@@ -59,3 +59,52 @@ def test_compute_csm_initial_onerous_when_commission_exceeds_margin():
     )
     assert result.csm_balance == 0.0
     assert result.onerous_loss > 0.0
+
+
+def test_step_csm_cohort_accretes_then_releases_straight_line():
+    new_balance, release = step_csm_cohort(
+        csm_balance=1200.0,
+        locked_in_rate_monthly=0.0025,
+        straight_line_release=100.0,
+        periods_remaining=12,
+        is_closing=False,
+    )
+    accreted = 1200.0 * 1.0025
+    assert release == pytest.approx(100.0)
+    assert new_balance == pytest.approx(accreted - 100.0)
+
+
+def test_step_csm_cohort_caps_release_at_available_balance():
+    new_balance, release = step_csm_cohort(
+        csm_balance=50.0,
+        locked_in_rate_monthly=0.0,
+        straight_line_release=100.0,
+        periods_remaining=2,
+        is_closing=False,
+    )
+    assert release == pytest.approx(50.0)
+    assert new_balance == pytest.approx(0.0)
+
+
+def test_step_csm_cohort_releases_full_balance_when_closing():
+    new_balance, release = step_csm_cohort(
+        csm_balance=1000.0,
+        locked_in_rate_monthly=0.0025,
+        straight_line_release=50.0,
+        periods_remaining=20,
+        is_closing=True,
+    )
+    assert release == pytest.approx(1000.0 * 1.0025)
+    assert new_balance == pytest.approx(0.0)
+
+
+def test_step_csm_cohort_releases_full_balance_on_last_period():
+    new_balance, release = step_csm_cohort(
+        csm_balance=100.0,
+        locked_in_rate_monthly=0.0,
+        straight_line_release=100.0,
+        periods_remaining=1,
+        is_closing=False,
+    )
+    assert release == pytest.approx(100.0)
+    assert new_balance == pytest.approx(0.0)

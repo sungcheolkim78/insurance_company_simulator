@@ -74,3 +74,17 @@ def compute_csm_initial(
         straight_line_release=csm_balance / n_periods,
         periods_remaining=n_periods,
     )
+
+
+def step_csm_cohort(
+    csm_balance: float,
+    locked_in_rate_monthly: float,
+    straight_line_release: float,
+    periods_remaining: int,
+    is_closing: bool,
+) -> tuple[float, float]:
+    accreted = csm_balance * (1 + locked_in_rate_monthly)
+    if is_closing or periods_remaining <= 1:
+        return 0.0, accreted
+    release = min(accreted, straight_line_release)
+    return accreted - release, release
