@@ -22,7 +22,11 @@ def test_submit_turn_advances_game_and_matches_engine_reference(client):
     assert body["current_turn"] == 1
     assert body["snapshot"]["turn"] == 1
     assert body["snapshot"]["premium_income"] == pytest.approx(10121850.0)
-    assert body["snapshot"]["equity"] == pytest.approx(10087572918.033474)
+    # equity fixture reflects create_game's actual starting allocation (100% deposit, per
+    # repository.py's create_game — NOT Task 7's engine-test starting mix of 3e9/4e9/3e9,
+    # which was an illustrative input for testing run_turn in isolation, not a claim about
+    # what a newly created game's portfolio looks like)
+    assert body["snapshot"]["equity"] == pytest.approx(9987254466.40991)
 
     history = client.get(f"/games/{game_id}/history")
     assert history.status_code == 200
