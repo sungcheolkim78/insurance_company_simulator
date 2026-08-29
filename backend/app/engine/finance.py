@@ -57,6 +57,17 @@ def compute_snapshot(
     dividend_payout: float,
     assets: AssetBalances,
     total_reserve: float,
+    interest_rate: float,
+    stock_regime: str,
+    stock_return_realized: float | None,
+    total_in_force: float,
+    deaths_count: float,
+    lapses_count: float,
+    new_policies_by_product: dict[str, int],
+    new_policies_by_channel: dict[str, int],
+    premium_income_by_product: dict[str, float],
+    new_business_premium_by_channel: dict[str, float],
+    commission_expense_by_channel: dict[str, float],
 ) -> FinancialSnapshot:
     net_income = (
         premium_income
@@ -90,4 +101,15 @@ def compute_snapshot(
         total_reserve=total_reserve,
         equity=equity,
         status=status,
+        interest_rate=interest_rate,
+        stock_regime=stock_regime,
+        stock_return_realized=stock_return_realized,
+        total_in_force=total_in_force,
+        deaths_count=deaths_count,
+        lapses_count=lapses_count,
+        new_policies_by_product=new_policies_by_product,
+        new_policies_by_channel=new_policies_by_channel,
+        premium_income_by_product=premium_income_by_product,
+        new_business_premium_by_channel=new_business_premium_by_channel,
+        commission_expense_by_channel=commission_expense_by_channel,
     )

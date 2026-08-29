@@ -38,6 +38,17 @@ def test_run_turn_matches_reference_calculation():
     assert result.assets.deposit == pytest.approx(2998899579.35593)
     assert result.assets.bond == pytest.approx(4000195279.8070974)
     assert result.assets.stock == pytest.approx(3097305168.870447)
+    assert result.snapshot.interest_rate == pytest.approx(0.030609434159508862)
+    assert result.snapshot.stock_regime == "normal"
+    assert result.snapshot.total_in_force == pytest.approx(121.31347666666667)
+    assert result.snapshot.deaths_count == pytest.approx(0.00819)
+    assert result.snapshot.lapses_count == pytest.approx(0.6783333333333333)
+    assert result.snapshot.new_policies_by_product == {"whole_life": 54, "savings": 68}
+    assert result.snapshot.new_policies_by_channel == {"captive": 46, "ga": 76}
+    assert result.snapshot.premium_income_by_product["whole_life"] == pytest.approx(941850.0)
+    assert result.snapshot.premium_income_by_product["savings"] == pytest.approx(9180000.0)
+    assert result.snapshot.new_business_premium_by_channel["captive"] == pytest.approx(3153483.3333333335)
+    assert result.snapshot.commission_expense_by_channel["ga"] == pytest.approx(3135765.0)
 
 
 def test_run_turn_preserves_accounting_identity_across_turns():

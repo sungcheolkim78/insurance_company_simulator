@@ -32,6 +32,8 @@ def test_step_cohort_whole_life_applies_mortality_and_reserve_accrual():
     assert flows.premium_income == pytest.approx(17484682.52194526)
     assert flows.death_claims == pytest.approx(15204071.758213272)
     assert flows.surrender_payouts == pytest.approx(0.0)
+    assert flows.deaths == pytest.approx(0.15204071758213272)
+    assert flows.lapses == pytest.approx(4.166666666666667)
 
 
 def test_step_cohort_savings_has_no_mortality_but_credits_interest():
@@ -50,6 +52,8 @@ def test_step_cohort_savings_has_no_mortality_but_credits_interest():
     assert updated.reserve_balance == pytest.approx(60899825.88866746)
     assert flows.premium_income == pytest.approx(67666473.2096305)
     assert flows.death_claims == pytest.approx(0.0)
+    assert flows.deaths == pytest.approx(0.0)
+    assert flows.lapses == pytest.approx(3.3333333333333335)
 
 
 def test_step_cohort_matures_and_closes():

@@ -1,9 +1,11 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
+import { deleteGame } from '../api/client'
 import KpiCards from '../components/KpiCards.vue'
 import HistoryCharts from '../components/HistoryCharts.vue'
+import MonitoringPanel from '../components/MonitoringPanel.vue'
 import DecisionPanel from '../components/DecisionPanel.vue'
 import TurnControl from '../components/TurnControl.vue'
 
@@ -13,6 +15,10 @@ const router = useRouter()
 const lastDecision = ref(null)
 const isBusy = ref(false)
 const errorMessage = ref('')
+
+const prevSnapshot = computed(() =>
+  store.history.length >= 2 ? store.history[store.history.length - 2] : null,
+)
 
 onMounted(() => store.load(Number(props.id)))
 
@@ -40,16 +46,45 @@ async function runTurns(count) {
     router.push(`/games/${props.id}/result`)
   }
 }
+
+async function handleEndGame() {
+  if (isBusy.value) return
+  if (!window.confirm('현재 게임을 종료하고 새 시뮬레이션을 시작할까요? 진행 상황은 삭제됩니다.')) return
+  isBusy.value = true
+  try {
+    await deleteGame(Number(props.id))
+    router.push('/')
+  } catch (err) {
+    errorMessage.value = '게임 종료에 실패했습니다. 다시 시도해주세요.'
+    isBusy.value = false
+  }
+}
 </script>
 
 <template>
-  <div v-if="store.snapshot" class="mx-auto max-w-4xl space-y-6 p-8">
-    <h1 class="text-2xl font-bold text-slate-800">턴 {{ store.currentTurn }} / 120</h1>
+  <div v-if="store.snapshot" class="mx-auto max-w-6xl space-y-6 p-8">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-slate-800">턴 {{ store.currentTurn }} / 120</h1>
+      <button
+        class="rounded border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+        :disabled="isBusy"
+        @click="handleEndGame"
+      >
+        게임 종료 &amp; 새 시뮬레이션
+      </button>
+    </div>
     <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
     <KpiCards :snapshot="store.snapshot" />
-    <HistoryCharts :history="store.history" />
-    <DecisionPanel @submit="handleDecisionSubmit" />
-    <TurnControl :disabled="isBusy || store.status !== 'running'" @run-turns="runTurns" />
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div class="space-y-6">
+        <MonitoringPanel :snapshot="store.snapshot" :prev-snapshot="prevSnapshot" :decision="lastDecision" />
+        <HistoryCharts :history="store.history" />
+      </div>
+      <div class="space-y-6">
+        <DecisionPanel @submit="handleDecisionSubmit" />
+        <TurnControl :disabled="isBusy || store.status !== 'running'" @run-turns="runTurns" />
+      </div>
+    </div>
   </div>
   <div v-else class="p-8 text-slate-500">불러오는 중...</div>
 </template>

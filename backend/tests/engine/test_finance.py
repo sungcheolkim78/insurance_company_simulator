@@ -48,6 +48,17 @@ def test_compute_snapshot_running_status():
         dividend_payout=0.0,
         assets=AssetBalances(deposit=1.0, bond=2.0, stock=3.0),
         total_reserve=8_000_000.0,
+        interest_rate=0.03,
+        stock_regime="normal",
+        stock_return_realized=0.01,
+        total_in_force=1000.0,
+        deaths_count=1.0,
+        lapses_count=2.0,
+        new_policies_by_product={"whole_life": 0, "savings": 0},
+        new_policies_by_channel={"captive": 0, "ga": 0},
+        premium_income_by_product={"whole_life": 10_000_000.0, "savings": 0.0},
+        new_business_premium_by_channel={"captive": 0.0, "ga": 0.0},
+        commission_expense_by_channel={"captive": 2_000_000.0, "ga": 0.0},
     )
     assert snapshot.net_income == pytest.approx(583333.33, rel=1e-6)
     assert snapshot.equity == pytest.approx(10_000_583_333.33, rel=1e-9)
@@ -70,6 +81,17 @@ def test_compute_snapshot_bankrupt_status():
         dividend_payout=0.0,
         assets=AssetBalances(deposit=0.0, bond=0.0, stock=0.0),
         total_reserve=0.0,
+        interest_rate=0.03,
+        stock_regime="normal",
+        stock_return_realized=None,
+        total_in_force=0.0,
+        deaths_count=0.0,
+        lapses_count=0.0,
+        new_policies_by_product={"whole_life": 0, "savings": 0},
+        new_policies_by_channel={"captive": 0, "ga": 0},
+        premium_income_by_product={"whole_life": 0.0, "savings": 0.0},
+        new_business_premium_by_channel={"captive": 0.0, "ga": 0.0},
+        commission_expense_by_channel={"captive": 0.0, "ga": 0.0},
     )
     # marketing_expense alone exceeds equity_start, driving net_income and equity negative
     assert snapshot.net_income == pytest.approx(-5_000_000.0)

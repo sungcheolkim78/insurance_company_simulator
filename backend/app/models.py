@@ -79,3 +79,14 @@ class FinancialSnapshotRow(SQLModel, table=True):
     total_reserve: float
     equity: float
     status: str
+    interest_rate: float
+    stock_regime: str
+    stock_return_realized: float | None = None
+    total_in_force: float
+    deaths_count: float
+    lapses_count: float
+    new_policies_by_product: dict = Field(sa_column=Column(JSON))
+    new_policies_by_channel: dict = Field(sa_column=Column(JSON))
+    premium_income_by_product: dict = Field(sa_column=Column(JSON))
+    new_business_premium_by_channel: dict = Field(sa_column=Column(JSON))
+    commission_expense_by_channel: dict = Field(sa_column=Column(JSON))

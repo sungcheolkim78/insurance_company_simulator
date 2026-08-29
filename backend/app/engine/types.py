@@ -90,6 +90,8 @@ class CohortFlows:
     death_claims: float = 0.0
     surrender_payouts: float = 0.0
     maturity_payouts: float = 0.0
+    deaths: float = 0.0
+    lapses: float = 0.0
 
 
 @dataclass
@@ -111,6 +113,17 @@ class FinancialSnapshot:
     total_reserve: float
     equity: float
     status: GameStatus
+    interest_rate: float
+    stock_regime: str
+    stock_return_realized: float | None
+    total_in_force: float
+    deaths_count: float
+    lapses_count: float
+    new_policies_by_product: dict[str, int]
+    new_policies_by_channel: dict[str, int]
+    premium_income_by_product: dict[str, float]
+    new_business_premium_by_channel: dict[str, float]
+    commission_expense_by_channel: dict[str, float]
 
 
 @dataclass

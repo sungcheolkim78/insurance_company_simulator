@@ -51,6 +51,17 @@ def create_game(session: Session, initial_capital: float, rng_seed: int) -> Game
             total_reserve=0.0,
             equity=initial_capital,
             status=GameStatus.RUNNING.value,
+            interest_rate=LONG_RUN_RATE,
+            stock_regime=StockRegime.NORMAL.value,
+            stock_return_realized=None,
+            total_in_force=0.0,
+            deaths_count=0.0,
+            lapses_count=0.0,
+            new_policies_by_product={p.value: 0 for p in ProductCode},
+            new_policies_by_channel={c.value: 0 for c in ChannelCode},
+            premium_income_by_product={p.value: 0.0 for p in ProductCode},
+            new_business_premium_by_channel={c.value: 0.0 for c in ChannelCode},
+            commission_expense_by_channel={c.value: 0.0 for c in ChannelCode},
         )
     )
     session.commit()
@@ -162,6 +173,17 @@ def apply_turn(session: Session, game_id: int, decision: Decision) -> FinancialS
         total_reserve=result.snapshot.total_reserve,
         equity=result.snapshot.equity,
         status=result.snapshot.status.value,
+        interest_rate=result.snapshot.interest_rate,
+        stock_regime=result.snapshot.stock_regime,
+        stock_return_realized=result.snapshot.stock_return_realized,
+        total_in_force=result.snapshot.total_in_force,
+        deaths_count=result.snapshot.deaths_count,
+        lapses_count=result.snapshot.lapses_count,
+        new_policies_by_product=result.snapshot.new_policies_by_product,
+        new_policies_by_channel=result.snapshot.new_policies_by_channel,
+        premium_income_by_product=result.snapshot.premium_income_by_product,
+        new_business_premium_by_channel=result.snapshot.new_business_premium_by_channel,
+        commission_expense_by_channel=result.snapshot.commission_expense_by_channel,
     )
     session.add(snapshot_row)
 

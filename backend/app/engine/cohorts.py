@@ -39,7 +39,13 @@ def step_cohort(
     )
 
     in_force_next = cohort.in_force_count - deaths - lapses
-    flows = CohortFlows(premium_income=premium, death_claims=death_claims, surrender_payouts=surrender_payout)
+    flows = CohortFlows(
+        premium_income=premium,
+        death_claims=death_claims,
+        surrender_payouts=surrender_payout,
+        deaths=deaths,
+        lapses=lapses,
+    )
 
     new_duration = duration_turns + 1
     if product.maturity_turns is not None and new_duration >= product.maturity_turns:
