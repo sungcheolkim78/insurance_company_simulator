@@ -59,9 +59,14 @@ def test_compute_snapshot_running_status():
         premium_income_by_product={"whole_life": 10_000_000.0, "savings": 0.0},
         new_business_premium_by_channel={"captive": 0.0, "ga": 0.0},
         commission_expense_by_channel={"captive": 2_000_000.0, "ga": 0.0},
+        total_csm=90_000.0,
+        csm_change=50_000.0,
+        csm_release=5_000.0,
+        csm_new_business=55_000.0,
+        onerous_loss=0.0,
     )
-    assert snapshot.net_income == pytest.approx(583333.33, rel=1e-6)
-    assert snapshot.equity == pytest.approx(10_000_583_333.33, rel=1e-9)
+    assert snapshot.net_income == pytest.approx(533333.33, rel=1e-6)
+    assert snapshot.equity == pytest.approx(10_000_533_333.33, rel=1e-9)
     assert snapshot.status == GameStatus.RUNNING
 
 
@@ -92,6 +97,11 @@ def test_compute_snapshot_bankrupt_status():
         premium_income_by_product={"whole_life": 0.0, "savings": 0.0},
         new_business_premium_by_channel={"captive": 0.0, "ga": 0.0},
         commission_expense_by_channel={"captive": 0.0, "ga": 0.0},
+        total_csm=0.0,
+        csm_change=0.0,
+        csm_release=0.0,
+        csm_new_business=0.0,
+        onerous_loss=0.0,
     )
     # marketing_expense alone exceeds equity_start, driving net_income and equity negative
     assert snapshot.net_income == pytest.approx(-5_000_000.0)

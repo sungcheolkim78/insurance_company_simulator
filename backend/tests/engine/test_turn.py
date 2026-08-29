@@ -33,8 +33,8 @@ def test_run_turn_matches_reference_calculation():
     assert result.snapshot.marketing_expense == pytest.approx(25000000)
     assert result.snapshot.opex == pytest.approx(5480658.723013548)
     assert result.snapshot.reserve_change == pytest.approx(8827110.0)
-    assert result.snapshot.net_income == pytest.approx(87572918.03347482)
-    assert result.snapshot.equity == pytest.approx(10087572918.033474)
+    assert result.snapshot.net_income == pytest.approx(-1956478.5450022668)
+    assert result.snapshot.equity == pytest.approx(9998043521.454998)
     assert result.assets.deposit == pytest.approx(2998899579.35593)
     assert result.assets.bond == pytest.approx(4000195279.8070974)
     assert result.assets.stock == pytest.approx(3097305168.870447)
@@ -49,6 +49,15 @@ def test_run_turn_matches_reference_calculation():
     assert result.snapshot.premium_income_by_product["savings"] == pytest.approx(9180000.0)
     assert result.snapshot.new_business_premium_by_channel["captive"] == pytest.approx(3153483.3333333335)
     assert result.snapshot.commission_expense_by_channel["ga"] == pytest.approx(3135765.0)
+    assert result.snapshot.total_csm > 0
+    # csm_new_business is the pre-accretion CSM at issuance; total_csm + csm_release is the
+    # post-accretion split (balance remaining + released) after one turn of interest accretion
+    # at interest_rate/12, since all 4 cohorts are brand new this turn (issued and stepped
+    # forward once in the same turn).
+    assert result.snapshot.csm_new_business * (
+        1 + result.snapshot.interest_rate / 12
+    ) == pytest.approx(result.snapshot.total_csm + result.snapshot.csm_release, rel=1e-9)
+    assert result.snapshot.onerous_loss == pytest.approx(0.0)
 
 
 def test_run_turn_preserves_accounting_identity_across_turns():
@@ -62,7 +71,8 @@ def test_run_turn_preserves_accounting_identity_across_turns():
     for turn in range(5):
         result = run_turn(turn, cohorts, market, assets, equity, decision, rng)
         total_reserve = sum(c.reserve_balance for c in result.cohorts)
-        assert result.assets.total == pytest.approx(total_reserve + result.snapshot.equity, rel=1e-9)
+        total_csm = sum(c.csm_balance for c in result.cohorts)
+        assert result.assets.total == pytest.approx(total_reserve + total_csm + result.snapshot.equity, rel=1e-9)
         market, assets, equity, cohorts = result.market_state, result.assets, result.snapshot.equity, result.cohorts
 
 

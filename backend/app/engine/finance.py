@@ -57,6 +57,11 @@ def compute_snapshot(
     dividend_payout: float,
     assets: AssetBalances,
     total_reserve: float,
+    total_csm: float,
+    csm_change: float,
+    csm_release: float,
+    csm_new_business: float,
+    onerous_loss: float,
     interest_rate: float,
     stock_regime: str,
     stock_return_realized: float | None,
@@ -79,6 +84,8 @@ def compute_snapshot(
         - marketing_expense
         - opex
         - reserve_change
+        - csm_change
+        - onerous_loss
     )
     equity = equity_start + net_income - dividend_payout
     status = GameStatus.BANKRUPT if equity <= 0 else GameStatus.RUNNING
@@ -99,6 +106,11 @@ def compute_snapshot(
         bond_balance=assets.bond,
         stock_balance=assets.stock,
         total_reserve=total_reserve,
+        total_csm=total_csm,
+        csm_change=csm_change,
+        csm_release=csm_release,
+        csm_new_business=csm_new_business,
+        onerous_loss=onerous_loss,
         equity=equity,
         status=status,
         interest_rate=interest_rate,
