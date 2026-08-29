@@ -1,27 +1,28 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
-from pathlib import Path
-import tempfile
 
+import app.db as db
 from app.db import get_session
 from app.main import app
-from app import models  # noqa: F401 - imported to register models with SQLModel
 
 
 @pytest.fixture()
-def client():
-    # Use a temporary file-based database for tests
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test.db"
-        engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
-        SQLModel.metadata.create_all(engine)
+def client(monkeypatch):
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr(db, "engine", engine)
 
-        def override_get_session():
-            with Session(engine) as session:
-                yield session
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
 
-        app.dependency_overrides[get_session] = override_get_session
-        with TestClient(app) as test_client:
-            yield test_client
-        app.dependency_overrides.clear()
+    app.dependency_overrides[get_session] = override_get_session
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
