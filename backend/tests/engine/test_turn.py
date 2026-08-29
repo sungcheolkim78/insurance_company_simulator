@@ -76,6 +76,40 @@ def test_run_turn_preserves_accounting_identity_across_turns():
         market, assets, equity, cohorts = result.market_state, result.assets, result.snapshot.equity, result.cohorts
 
 
+def test_run_turn_onerous_loss_breaks_identity_by_exactly_its_own_amount():
+    """Regression test for the CSM final-review finding on unbounded commission_rate.
+
+    The balance-sheet identity AssetsTotal == TotalReserve + TotalCSM + Equity (asserted
+    for the normal case in test_run_turn_preserves_accounting_identity_across_turns) only
+    holds when onerous_loss == 0: an onerous cohort's CSM is clamped to 0 rather than going
+    negative, so onerous_loss reduces net_income/equity with no offsetting liability. The
+    API schema (TurnRequest in app/schemas.py) now caps commission_rate at 2.0, comfortably
+    below the empirical onerous breakeven (~4.95 for savings, ~52 for whole_life at default
+    params) — so real players can never reach this path. The engine's Decision dataclass
+    itself enforces no such cap, so this test drives run_turn directly with a commission_rate
+    far outside the API's allowed range to pin down *exactly* how the identity breaks: the
+    gap between assets and (reserve + csm + equity) must equal onerous_loss precisely, with
+    nothing else silently absorbing or hiding the loss. A future change to onerous handling
+    that lets some of it vanish unaccounted-for (or leak into a different bucket) will fail
+    this test.
+    """
+    rng = np.random.default_rng(42)
+    market = MarketState(turn=0, interest_rate=0.03, stock_regime=StockRegime.NORMAL, stock_return_realized=None)
+    assets = AssetBalances(deposit=3_000_000_000.0, bond=4_000_000_000.0, stock=3_000_000_000.0)
+    decision = base_decision()
+    # 6.0 is far above the API's 2.0 cap and above the ~4.95 savings breakeven, so the
+    # savings/GA cohort issued this turn goes onerous.
+    decision.commission_rate = {ChannelCode.CAPTIVE: 0.30, ChannelCode.GA: 6.0}
+
+    result = run_turn(0, [], market, assets, 10_000_000_000.0, decision, rng)
+
+    assert result.snapshot.onerous_loss > 0.0
+    total_csm = sum(c.csm_balance for c in result.cohorts)
+    total_reserve = sum(c.reserve_balance for c in result.cohorts)
+    gap = result.assets.total - (total_reserve + total_csm + result.snapshot.equity)
+    assert gap == pytest.approx(result.snapshot.onerous_loss, rel=1e-6)
+
+
 def test_run_turn_marks_completed_at_game_length():
     rng = np.random.default_rng(42)
     market = MarketState(turn=119, interest_rate=0.03, stock_regime=StockRegime.NORMAL, stock_return_realized=0.01)

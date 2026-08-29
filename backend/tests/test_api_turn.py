@@ -78,6 +78,16 @@ def test_submit_turn_rejects_asset_allocation_not_summing_to_one(client):
     assert response.status_code == 422
 
 
+def test_submit_turn_rejects_commission_rate_above_upper_bound(client):
+    create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
+    game_id = create.json()["id"]
+    payload = turn_payload()
+    payload["commission_rate"]["ga"] = 2.5
+
+    response = client.post(f"/games/{game_id}/turn", json=payload)
+    assert response.status_code == 422
+
+
 def test_submit_turn_rejects_missing_product_key(client):
     create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
     game_id = create.json()["id"]

@@ -91,6 +91,20 @@ class TurnRequest(BaseModel):
                 raise ValueError("values must be non-negative")
         return value
 
+    @field_validator("commission_rate")
+    @classmethod
+    def _commission_rate_upper_bound(cls, value: dict[str, float]) -> dict[str, float]:
+        # The balance-sheet identity AssetsTotal == TotalReserve + TotalCSM + Equity (see
+        # docs/simulation/simulation_formulas.md §6.1.3) only holds when onerous_loss == 0.
+        # A commission_rate far above the documented 0.1-0.8 play range can push a cohort's
+        # CSM negative at issuance (onerous), which breaks that identity. 2.0 is comfortably
+        # above legitimate play and comfortably below the empirical onerous breakeven
+        # (~4.95 for savings, ~52 for whole_life at default params).
+        for v in value.values():
+            if v > 2.0:
+                raise ValueError("commission_rate values must not exceed 2.0")
+        return value
+
     @field_validator("dividend_payout")
     @classmethod
     def _dividend_non_negative(cls, value: float) -> float:
