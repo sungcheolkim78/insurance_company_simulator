@@ -6,8 +6,9 @@ from sqlmodel import Session, select
 from .. import repository
 from ..db import get_session
 from ..engine.config import DEFAULT_CHANNEL_CONFIGS, DEFAULT_PRODUCT_CONFIGS
-from ..models import FinancialSnapshotRow, GameRow
-from ..schemas import ConfigResponse, CreateGameRequest, GameStateResponse, GameSummary, SnapshotResponse
+from ..engine.types import ChannelCode, Decision, ProductCode
+from ..models import CohortRow, DecisionRow, FinancialSnapshotRow, GameRow, MarketStateRow
+from ..schemas import ConfigResponse, CreateGameRequest, GameStateResponse, GameSummary, SnapshotResponse, TurnRequest
 
 router = APIRouter(prefix="/games", tags=["games"])
 
@@ -59,3 +60,51 @@ def get_config(game_id: int, session: Session = Depends(get_session)) -> ConfigR
         products={code.value: _config_dict(cfg) for code, cfg in DEFAULT_PRODUCT_CONFIGS.items()},
         channels={code.value: _config_dict(cfg) for code, cfg in DEFAULT_CHANNEL_CONFIGS.items()},
     )
+
+
+def _decision_from_request(payload: TurnRequest) -> Decision:
+    return Decision(
+        pricing_multiplier={ProductCode(k): v for k, v in payload.pricing_multiplier.items()},
+        underwriting_strictness={ProductCode(k): v for k, v in payload.underwriting_strictness.items()},
+        commission_rate={ChannelCode(k): v for k, v in payload.commission_rate.items()},
+        marketing_spend={ChannelCode(k): v for k, v in payload.marketing_spend.items()},
+        asset_allocation=payload.asset_allocation,
+        dividend_payout=payload.dividend_payout,
+    )
+
+
+@router.get("/{game_id}/history", response_model=list[SnapshotResponse])
+def get_history(game_id: int, session: Session = Depends(get_session)) -> list[SnapshotResponse]:
+    game = session.get(GameRow, game_id)
+    if game is None:
+        raise HTTPException(status_code=404, detail="game not found")
+    rows = session.exec(
+        select(FinancialSnapshotRow).where(FinancialSnapshotRow.game_id == game_id).order_by(FinancialSnapshotRow.turn)
+    ).all()
+    return [_snapshot_to_schema(row) for row in rows]
+
+
+@router.post("/{game_id}/turn", response_model=GameStateResponse)
+def submit_turn(game_id: int, payload: TurnRequest, session: Session = Depends(get_session)) -> GameStateResponse:
+    game = session.get(GameRow, game_id)
+    if game is None:
+        raise HTTPException(status_code=404, detail="game not found")
+    try:
+        repository.apply_turn(session, game_id, _decision_from_request(payload))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    session.refresh(game)
+    return _game_state(session, game)
+
+
+@router.delete("/{game_id}")
+def delete_game(game_id: int, session: Session = Depends(get_session)) -> dict[str, bool]:
+    game = session.get(GameRow, game_id)
+    if game is None:
+        raise HTTPException(status_code=404, detail="game not found")
+    for model in (CohortRow, MarketStateRow, DecisionRow, FinancialSnapshotRow):
+        for row in session.exec(select(model).where(model.game_id == game_id)).all():
+            session.delete(row)
+    session.delete(game)
+    session.commit()
+    return {"deleted": True}
