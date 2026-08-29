@@ -43,6 +43,8 @@ const assetsTotal = computed(() => props.snapshot.deposit_balance + props.snapsh
           <tr class="border-t border-slate-100 font-medium"><td class="pl-3">비용 합계</td><td class="text-right">{{ formatWon(expenseTotal) }}</td></tr>
 
           <tr><td class="pt-3">책임준비금전입액</td><td class="pt-3 text-right">{{ formatWon(snapshot.reserve_change) }}</td></tr>
+          <tr><td class="pt-1">CSM 순증감</td><td class="pt-1 text-right">{{ formatWon(snapshot.csm_change) }}</td></tr>
+          <tr><td>손실부담계약손실</td><td class="text-right">{{ formatWon(snapshot.onerous_loss) }}</td></tr>
           <tr class="border-t border-slate-300 text-base font-bold">
             <td class="pt-2">당기순이익</td>
             <td class="pt-2 text-right" :class="snapshot.net_income >= 0 ? 'text-emerald-600' : 'text-red-600'">
@@ -65,6 +67,7 @@ const assetsTotal = computed(() => props.snapshot.deposit_balance + props.snapsh
 
           <tr class="text-slate-500"><td colspan="2" class="pt-3 font-medium text-slate-600">부채</td></tr>
           <tr><td class="pl-3">책임준비금</td><td class="text-right">{{ formatWon(snapshot.total_reserve) }}</td></tr>
+          <tr><td class="pl-3">계약서비스마진 (CSM)</td><td class="text-right">{{ formatWon(snapshot.total_csm) }}</td></tr>
 
           <tr class="text-slate-500"><td colspan="2" class="pt-3 font-medium text-slate-600">자본</td></tr>
           <tr class="border-t border-slate-300 text-base font-bold">
