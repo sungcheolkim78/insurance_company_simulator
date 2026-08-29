@@ -217,7 +217,7 @@ def test_compute_csm_initial_onerous_when_commission_exceeds_margin():
         pricing_multiplier=1.0,
         underwriting_strictness=0.3,
         count=1,
-        commission_rate=50.0,  # absurdly high commission forces a loss
+        commission_rate=100.0,  # far above the ~55 breakeven for this product/strictness — forces a loss
         market_rate_annual=0.03,
     )
     assert result.csm_balance == 0.0
