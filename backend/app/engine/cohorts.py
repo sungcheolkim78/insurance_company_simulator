@@ -1,4 +1,5 @@
 from .config import DEFAULT_PRODUCT_CONFIGS, LAPSE_PRICE_SENSITIVITY
+from .csm import step_csm_cohort
 from .products import effective_cost_rate_annual, gross_premium_per_policy_monthly
 from .types import CohortFlows, CohortState, Decision, ProductCode
 
@@ -39,16 +40,28 @@ def step_cohort(
     )
 
     in_force_next = cohort.in_force_count - deaths - lapses
+    new_duration = duration_turns + 1
+    is_maturing = product.maturity_turns is not None and new_duration >= product.maturity_turns
+    is_closing = is_maturing or in_force_next <= 0.01
+
+    new_csm_balance, csm_release = step_csm_cohort(
+        cohort.csm_balance,
+        cohort.csm_locked_in_rate_monthly,
+        cohort.csm_straight_line_release,
+        cohort.csm_periods_remaining,
+        is_closing,
+    )
+
     flows = CohortFlows(
         premium_income=premium,
         death_claims=death_claims,
         surrender_payouts=surrender_payout,
         deaths=deaths,
         lapses=lapses,
+        csm_release=csm_release,
     )
 
-    new_duration = duration_turns + 1
-    if product.maturity_turns is not None and new_duration >= product.maturity_turns:
+    if is_maturing:
         flows.maturity_payouts = reserve_balance_next
         return None, flows
 
@@ -62,5 +75,9 @@ def step_cohort(
         in_force_count=in_force_next,
         unit_size=cohort.unit_size,
         reserve_balance=reserve_balance_next,
+        csm_balance=new_csm_balance,
+        csm_locked_in_rate_monthly=cohort.csm_locked_in_rate_monthly,
+        csm_straight_line_release=cohort.csm_straight_line_release,
+        csm_periods_remaining=cohort.csm_periods_remaining - 1,
     )
     return updated, flows

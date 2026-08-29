@@ -69,3 +69,43 @@ def test_step_cohort_matures_and_closes():
 
     assert updated is None
     assert flows.maturity_payouts > 0
+
+
+def test_step_cohort_rolls_forward_existing_csm_balance():
+    cohort = CohortState(
+        product=ProductCode.WHOLE_LIFE,
+        channel=ChannelCode.CAPTIVE,
+        issue_turn=0,
+        in_force_count=1000.0,
+        unit_size=100_000_000,
+        reserve_balance=10_000_000.0,
+        csm_balance=1_200_000.0,
+        csm_locked_in_rate_monthly=0.0025,
+        csm_straight_line_release=10_000.0,
+        csm_periods_remaining=120,
+    )
+    updated, flows = step_cohort(cohort, base_decision(), current_turn=1, portfolio_return_monthly=0.0025)
+
+    assert updated is not None
+    assert flows.csm_release == pytest.approx(10_000.0)
+    assert updated.csm_balance == pytest.approx(1_200_000.0 * 1.0025 - 10_000.0)
+    assert updated.csm_periods_remaining == 119
+
+
+def test_step_cohort_releases_full_csm_balance_on_maturity():
+    cohort = CohortState(
+        product=ProductCode.SAVINGS,
+        channel=ChannelCode.GA,
+        issue_turn=0,
+        in_force_count=100.0,
+        unit_size=60_000_000,
+        reserve_balance=500_000_000.0,
+        csm_balance=5_000_000.0,
+        csm_locked_in_rate_monthly=0.0025,
+        csm_straight_line_release=100_000.0,
+        csm_periods_remaining=1,
+    )
+    updated, flows = step_cohort(cohort, base_decision(), current_turn=60, portfolio_return_monthly=0.0025)
+
+    assert updated is None
+    assert flows.csm_release == pytest.approx(5_000_000.0 * 1.0025)
