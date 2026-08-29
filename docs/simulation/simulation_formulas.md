@@ -237,14 +237,69 @@ $$\text{ToInvest} = \text{NetCashflow} - \text{DividendPayout}$$
 
 ## 6. 손익계산서 (P&L) 및 재무상태표 (Balance Sheet)
 
-### 6.1 사업비 및 수수료 비용 산출
+### 6.1 계약서비스마진 (CSM, Contractual Service Margin)
+
+IFRS17의 CSM(계약서비스마진) 개념을 게임 엔진에 맞게 단순화하여 도입합니다. CSM은 신계약이 발행되는 시점에 "미래에 벌어들일 것으로 기대되는 보험료 마진의 현재가치"를 부채로 유보(deferral)했다가, 보장 기간에 걸쳐 서비스 제공분만큼 손익으로 환입(release)하는 메커니즘입니다. (참고: [The Contractual Service Margin (CSM) Decoded — Dawgen Global](https://www.dawgen.global/the-contractual-service-margin-csm-decoded-profit-recognition-under-ifrs-17/))
+
+> **단순화 사항**: 실제 IFRS17은 보험수익(Insurance Revenue) 산출 방식 자체를 재정의하지만, 본 게임 엔진은 기존 현금·발생주의 손익 산식(§6.3)을 그대로 유지한 채, "준비금 적립 후 남는 보험료 마진"의 인식 시점만 CSM을 통해 이연·환입시키는 방식으로 근사합니다. 위험조정(Risk Adjustment)도 단일 계수 기반의 단순 근사치입니다.
+
+#### 6.1.1 코호트 발행 시 최초 인식 (Initial Recognition)
+
+신계약 코호트 발행 시점(`issue_turn`)의 시장금리·가격배수·언더라이팅 엄격도를 "lock-in"하여 잔존기간 동안 고정된 가정으로 미래현금흐름을 추정합니다.
+
+**Lock-in 가정**:
+$$r_{\text{lock}} = \text{Rate}_{\text{issue\_turn}}, \qquad q_{\text{lock}}(p) = \text{MonthlyDecrementRate}(p, 0) + \text{MonthlyLapseRate}(p)$$
+
+**투영기간 ($N$)**:
+$$N = \begin{cases} \text{maturity\_turns}_p & (p = \text{savings}) \\ \min\left(\left\lceil \dfrac{1}{q_{\text{lock}}(p)} \right\rceil,\; N_{\max}\right) & (p = \text{whole\_life}) \end{cases}$$
+- $N_{\max} = \text{CSM\_WHOLE\_LIFE\_HORIZON\_CAP\_TURNS}$ (기본값 600턴 = 50년, 수치 안정성을 위한 상한)
+
+**건당 기대 마진 현재가치 ($\text{PVMargin}$)** — 준비금 적립분을 제외한 "순수 마진" 부분만 집계:
+$$\text{PVMargin} = \sum_{t=0}^{N-1} \frac{(1-q_{\text{lock}})^t \times \text{GrossPremiumPerPolicy}(p, t, \text{Multiplier}_{\text{issue}}, \text{Strictness}_{\text{issue}}) \times (1 - \text{ReserveAccrualRatio}_p)}{(1 + r_{\text{lock}}/12)^t}$$
+
+**건당 위험조정 ($\text{RiskAdjustment}$)** — 사망보장 리스크에 대한 단순 마진 차감:
+$$\text{RiskAdjustment} = \text{RA\_COEF} \times \sum_{t=0}^{N-1} \frac{(1-q_{\text{lock}})^t \times \text{MortalityClaimCost}(p, t)}{(1 + r_{\text{lock}}/12)^t}$$
+$$\text{MortalityClaimCost}(p, t) = \begin{cases} \dfrac{\text{EffectiveCostRate}(p, t)}{12} \times \text{UnitSize}_p & (p = \text{whole\_life}) \\ 0 & (p = \text{savings}) \end{cases}$$
+- $\text{RA\_COEF}$ 기본값 0.05 (5%)
+
+**코호트 단위 CSM 최초 설정액** (코호트 신계약 건수 = $\text{NewPolicies}$, $\text{CommissionExpense}_{\text{cohort}}$는 §6.2 참조):
+$$\text{CSM}_{\text{initial}} = \max\left(0,\; \text{NewPolicies} \times (\text{PVMargin} - \text{RiskAdjustment}) - \text{CommissionExpense}_{\text{cohort}}\right)$$
+
+**손실부담계약 (Onerous Contract)**: 기대 마진이 신계약 수수료조차 못 넘기면 그 부족분을 발행 턴에 즉시 비용으로 인식하고 CSM은 0으로 설정합니다.
+$$\text{OnerousLoss}_{\text{cohort}} = \max\left(0,\; \text{CommissionExpense}_{\text{cohort}} - \text{NewPolicies} \times (\text{PVMargin} - \text{RiskAdjustment})\right)$$
+
+코호트별로 다음 값을 저장하여 이후 롤포워드에 사용합니다: `csm_balance`(초기값 = $\text{CSM}_{\text{initial}}$), `csm_locked_in_rate_monthly` ($=r_{\text{lock}}/12$), `csm_straight_line_release` ($=\text{CSM}_{\text{initial}}/N$), `csm_periods_remaining` ($=N$).
+
+#### 6.1.2 매턴 롤포워드 (Subsequent Measurement)
+
+보유 중인 각 코호트에 대해 매턴 다음을 수행합니다:
+
+1. **이자부리**: $\text{csm\_balance} \leftarrow \text{csm\_balance} \times (1 + \text{csm\_locked\_in\_rate\_monthly})$
+2. **환입액 결정** (정액법, straight-line — 실무에서 인정되는 CSM 상각 방식 중 하나):
+   - 코호트가 이번 턴 **소멸**(사망·해지로 전량 소진 또는 만기 도달)하면: $\text{CSMRelease} = \text{csm\_balance}$ (잔액 전액 환입하여 완전 상각 보장)
+   - 그렇지 않으면: $\text{CSMRelease} = \min(\text{csm\_balance},\; \text{csm\_straight\_line\_release})$, 그리고 $\text{csm\_periods\_remaining} \leftarrow \text{csm\_periods\_remaining} - 1$
+3. $\text{csm\_balance} \leftarrow \text{csm\_balance} - \text{CSMRelease}$
+
+전사 합산:
+$$\text{TotalCSMRelease} = \sum_{\text{cohorts}} \text{CSMRelease}, \qquad \text{TotalCSM}_{\text{end}} = \sum_{\text{cohorts}} \text{csm\_balance}$$
+$$\text{CSMChange} = \text{TotalCSM}_{\text{end}} - \text{TotalCSM}_{\text{start}} \quad (\text{신규설정액} + \text{이자부리} - \text{환입액의 순증감})$$
+
+#### 6.1.3 손익계산서·재무상태표 반영
+
+$$\text{NetIncome}_{\text{최종}} = \text{NetIncome}_{\text{\S6.3 기존식}} - \text{CSMChange} - \sum_{\text{cohorts}} \text{OnerousLoss}_{\text{cohort}}$$
+
+$$\text{AssetsTotal} \equiv \text{TotalReserve}_{\text{end}} + \text{TotalCSM}_{\text{end}} + \text{Equity}_t$$
+
+CSM은 §6.4 재무상태표에 책임준비금과 별도의 부채 항목으로 추가됩니다.
+
+### 6.2 사업비 및 수수료 비용 산출
 - **신계약 수수료**: 이번 턴 발생한 신계약의 초회 보험료에 수수료율을 곱하여 즉시 비용 인식
   $$\text{CommissionExpense} = \sum_{\text{new cohorts}} \text{PremiumIncome}_{\text{cohort}} \times \text{CommissionRate}_{\text{channel}}$$
 - **마케팅비**: $\text{MarketingExpense} = \text{MarketingSpend}_{\text{captive}} + \text{MarketingSpend}_{\text{ga}}$
 - **일반관리비(Opex)**: 전체 유지계약 건수에 따른 로그 비례 비용
   $$\text{Opex} = 5,000,000 \times \left(1 + 0.02 \times \ln(1 + \text{TotalInForce})\right)$$
 
-### 6.2 손익계산서 (P&L) 수식 체계
+### 6.3 손익계산서 (P&L) 수식 체계
 
 | 항목 구분 | 세부 항목 | 산출 방식 |
 |---|---|---|
@@ -257,16 +312,20 @@ $$\text{ToInvest} = \text{NetCashflow} - \text{DividendPayout}$$
 | | 마케팅비 ($\text{MarketingExpense}$) | 채널별 마케팅 집행액 합계 |
 | | 일반관리비 ($\text{Opex}$) | $500만 \times (1 + 0.02 \ln(1 + N))$ |
 | **(-) 책임준비금전입액** | 준비금 변동분 ($\text{ReserveChange}$) | $\text{TotalReserve}_{\text{end}} - \text{TotalReserve}_{\text{start}}$ |
-| **(=) 당기순이익** | **$\text{NetIncome}$** | **수익 합계 - 비용 합계 - 준비금전입액** |
+| **(-) CSM 순증감** | CSM 변동분 ($\text{CSMChange}$) | §6.1.2 — 신규설정액 + 이자부리 − 환입액. 환입액이 신규설정보다 크면 이 항은 음수가 되어 순이익을 늘립니다 |
+| **(-) 손실부담계약손실** | 손실부담계약손실 ($\text{OnerousLoss}$) | §6.1.1 — 신규 코호트의 기대마진이 수수료보다 작을 때 즉시 인식 |
+| **(=) 당기순이익** | **$\text{NetIncome}$** | **수익 합계 - 비용 합계 - 준비금전입액 - CSM 순증감 - 손실부담계약손실** |
 
 $$\begin{aligned}
 \text{NetIncome} = &\;(\text{PremiumIncome} + \text{InvestmentIncome}) \\
 &- (\text{DeathClaims} + \text{SurrenderPayouts} + \text{MaturityPayouts}) \\
 &- (\text{CommissionExpense} + \text{MarketingExpense} + \text{Opex}) \\
-&- \text{ReserveChange}
+&- \text{ReserveChange} - \text{CSMChange} - \text{OnerousLoss}
 \end{aligned}$$
 
-### 6.3 재무상태표 (Balance Sheet) 롤포워드 및 자본 등식
+첫 줄부터 $\text{ReserveChange}$까지는 §6.1 CSM 도입 이전의 기존 산식이며, $\text{CSMChange}$와 $\text{OnerousLoss}$가 §6.1의 CSM 로직으로 추가된 항입니다. CSM 환입액(총액)은 손익계산서에 별도 행으로 표시하지 않고 순증감($\text{CSMChange}$)에 상계하여 반영하되, 환입 총액 자체는 §8.6 모니터링 지표에서 확인할 수 있습니다.
+
+### 6.4 재무상태표 (Balance Sheet) 롤포워드 및 자본 등식
 
 ```
 ========================================================================
@@ -274,17 +333,18 @@ $$\begin{aligned}
 ------------------------------------------------------------------------
        [ 자 산 (Assets) ]             |      [ 부 채 (Liabilities) ]
   1. 예금 (Deposit Balance)          |  1. 책임준비금 (Total Reserve)
-  2. 채권 (Bond Balance)             |----------------------------------
-  3. 주식 (Stock Balance)            |       [ 자 본 (Equity) ]
+  2. 채권 (Bond Balance)             |  2. 계약서비스마진 (Total CSM)
+  3. 주식 (Stock Balance)            |----------------------------------
+                                     |       [ 자 본 (Equity) ]
                                      |  1. 기말 순자산 (Equity)
 ------------------------------------------------------------------------
-  자산총계 = Deposit + Bond + Stock   |  부채와 자본총계 = Reserve + Equity
+  자산총계 = Deposit + Bond + Stock   |  부채와 자본총계 = Reserve + CSM + Equity
 ========================================================================
 ```
 
 $$\text{AssetsTotal} = \text{Deposit}_{\text{final}} + \text{Bond}_{\text{final}} + \text{Stock}_{\text{final}}$$
 
-$$\text{Liabilities} = \text{TotalReserve}_{\text{end}} = \sum_{\text{cohorts}} \text{ReserveBalance}_{\text{next}}$$
+$$\text{Liabilities} = \text{TotalReserve}_{\text{end}} + \text{TotalCSM}_{\text{end}} = \sum_{\text{cohorts}} \text{ReserveBalance}_{\text{next}} + \sum_{\text{cohorts}} \text{csm\_balance}$$
 
 $$\text{Equity}_{t} = \text{Equity}_{t-1} + \text{NetIncome} - \text{DividendPayout}$$
 
@@ -322,6 +382,12 @@ $$\text{AssetsTotal} \equiv \text{Liabilities} + \text{Equity}$$
 | `DEPOSIT_RATE_SPREAD` | 0.005 (0.5%) | 시장금리 대비 예금금리 할인 폭 |
 | `GAME_LENGTH_TURNS` | 120 | 총 게임 턴 수 (120개월 = 10년) |
 | `INITIAL_CAPITAL_DEFAULT`| 10,000,000,000 원 | 기본 초기 자본금 (100억 원) |
+
+### 7.4 계약서비스마진(CSM) 파라미터
+| 파라미터명 | 기본값 | 설명 |
+|---|---|---|
+| `CSM_RISK_ADJUSTMENT_COEF` | 0.05 (5%) | §6.1.1 위험조정 계수 — 기대 사망보험금 현재가치 대비 비율 |
+| `CSM_WHOLE_LIFE_HORIZON_CAP_TURNS` | 600턴 (50년) | §6.1.1 종신보험 CSM 투영기간 상한 ($N_{\max}$) |
 
 ---
 
@@ -369,6 +435,16 @@ $$\text{AssetsTotal} \equiv \text{Liabilities} + \text{Equity}$$
 2. **자본완충비율 (Solvency Buffer Proxy)**:
    $$\text{SolvencyProxy} = \frac{\text{Equity}}{\text{TotalReserve}}$$
 
+### 8.6 계약서비스마진 (CSM) 지표
+§6.1에서 도입한 CSM 롤포워드에서 파생되는 지표로, 현재 보유계약이 향후 벌어들일 것으로 기대되는 "미래 이익 체력"을 보여줍니다.
+1. **총 CSM 잔액 ($\text{TotalCSM}$)**: 아직 손익으로 환입되지 않은 미래 기대이익 유보분. 재무상태표 부채 항목이자 향후 이익의 선행지표.
+2. **이번 턴 CSM 환입액 ($\text{TotalCSMRelease}$)**: 이번 턴 실제로 손익에 반영된 서비스 제공분. 값이 클수록 보유계약 규모 대비 이익 실현 속도가 빠름을 의미.
+3. **이번 턴 신규 CSM 설정액 ($\sum \text{CSM}_{\text{initial}}$, 신규 코호트분)**: 이번 턴 신계약이 만들어낸 미래 기대이익 규모 — 당장 순이익엔 기여하지 않지만 향후 여러 턴에 걸쳐 환입될 이익 파이프라인.
+4. **CSM 대비 자본총계 비율**:
+   $$\text{CSMToEquityRatio} = \frac{\text{TotalCSM}}{\text{Equity}}$$
+   비율이 높을수록 현재 자본 대비 향후 환입될 이익이 두터움을 의미(성장기에 자연스럽게 상승).
+5. **손실부담계약손실 ($\text{OnerousLoss}$)**: 발생 시 해당 턴 신계약 가격/원가 구조가 손실을 내고 있다는 즉각적인 경고 신호.
+
 ---
 
 ## 9. 의사결정 조정 요소(Decision Controls) 가이드
@@ -381,4 +457,3 @@ $$\text{AssetsTotal} \equiv \text{Liabilities} + \text{Equity}$$
 | **채널 마케팅비 (`marketing_spend`)** | $0 \sim$ 수천만 | 인지도 개선 및 채널 생산성 확장 | 제곱근 체감 효과로 과도한 집행 시 현금 낭비 | 기준 집행액($1,000 \sim 1,500만$) 주변에서 최적 효율을 탐색하며 집행 |
 | **자산 배분 (`asset_allocation`)** | 합계 $1.0$ | 주식: 호황기 초과수익 / 채권·예금: 안정적 이자 | 주식: 위기 국면 시 대규모 손실 / 채권·예금: 인플레이션/고수익 기회비용 | Normal/Crisis 시 채권·예금 비중 확대, Boom 국면 진입 시 주식 비중 전술적 확대 |
 | **배당금 지급 (`dividend_payout`)** | $0 \sim$ 잉여금 | 주주 환원 및 자본 효율성(ROE) 제고 | 기말 순자산(Equity) 감소로 파산 위험 완충력 축소 | 자본금이 충분하고(파산 위험 없음) 잉여현금흐름이 안정적일 때 제한적 지급 |
-
