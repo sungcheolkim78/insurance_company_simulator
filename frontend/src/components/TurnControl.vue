@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 defineProps({ disabled: Boolean })
 const emit = defineEmits(['run-turns'])
-const autoTurns = ref(3)
+const autoTurns = ref(6)
 </script>
 
 <template>

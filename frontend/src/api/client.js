@@ -4,10 +4,11 @@ export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
 })
 
-export async function createGame(initialCapital, rngSeed) {
+export async function createGame(initialCapital, rngSeed, gameLengthTurns) {
   const response = await apiClient.post('/games', {
     initial_capital: initialCapital,
     rng_seed: rngSeed ?? null,
+    game_length_turns: gameLengthTurns,
   })
   return response.data
 }

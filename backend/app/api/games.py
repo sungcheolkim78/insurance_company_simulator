@@ -20,7 +20,11 @@ def _snapshot_to_schema(row: FinancialSnapshotRow) -> SnapshotResponse:
 def _game_state(session: Session, game: GameRow) -> GameStateResponse:
     snapshot = repository.latest_snapshot(session, game.id)
     return GameStateResponse(
-        id=game.id, current_turn=game.current_turn, status=game.status, snapshot=_snapshot_to_schema(snapshot)
+        id=game.id,
+        current_turn=game.current_turn,
+        status=game.status,
+        game_length_turns=game.game_length_turns,
+        snapshot=_snapshot_to_schema(snapshot),
     )
 
 
@@ -33,14 +37,17 @@ def _config_dict(cfg) -> dict:
 @router.post("", response_model=GameStateResponse)
 def create_game(payload: CreateGameRequest, session: Session = Depends(get_session)) -> GameStateResponse:
     seed = payload.rng_seed if payload.rng_seed is not None else random.randint(0, 2**31 - 1)
-    game = repository.create_game(session, payload.initial_capital, seed)
+    game = repository.create_game(session, payload.initial_capital, seed, payload.game_length_turns)
     return _game_state(session, game)
 
 
 @router.get("", response_model=list[GameSummary])
 def list_games(session: Session = Depends(get_session)) -> list[GameSummary]:
     games = session.exec(select(GameRow)).all()
-    return [GameSummary(id=g.id, current_turn=g.current_turn, status=g.status) for g in games]
+    return [
+        GameSummary(id=g.id, current_turn=g.current_turn, status=g.status, game_length_turns=g.game_length_turns)
+        for g in games
+    ]
 
 
 @router.get("/{game_id}", response_model=GameStateResponse)

@@ -89,7 +89,8 @@ insurance_company_simulator/
 │   └── Dockerfile
 ├── docs/                         # Specifications and implementation plans
 │   ├── simulation/               # Detailed simulation formulas and architecture docs
-│   │   └── simulation_formulas.md
+│   │   ├── simulation_formulas.md
+│   │   └── csm_methodology.md    # CSM calculation summary + ALM reference-article notes
 │   └── superpowers/
 │       ├── specs/2026-08-29-insurance-simulator-phase1-design.md
 │       └── plans/2026-08-29-insurance-simulator-phase1.md
@@ -189,7 +190,7 @@ pytest -v
 ### 4. API Endpoints Reference
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/games` | Create a new game instance (`initial_capital`, `rng_seed`) |
+| `POST` | `/games` | Create a new game instance (`initial_capital`, `rng_seed`, `game_length_turns`) |
 | `GET` | `/games` | List all saved games |
 | `GET` | `/games/{id}` | Get current game state and snapshot |
 | `GET` | `/games/{id}/config` | Get product and channel configurations |

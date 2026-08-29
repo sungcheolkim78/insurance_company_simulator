@@ -8,12 +8,21 @@ ASSET_KEYS = {"deposit", "bond", "stock"}
 class CreateGameRequest(BaseModel):
     initial_capital: float = 10_000_000_000.0
     rng_seed: int | None = None
+    game_length_turns: int = 120
+
+    @field_validator("game_length_turns")
+    @classmethod
+    def _game_length_turns_range(cls, value: int) -> int:
+        if not 1 <= value <= 600:
+            raise ValueError("game_length_turns must be between 1 and 600")
+        return value
 
 
 class GameSummary(BaseModel):
     id: int
     current_turn: int
     status: str
+    game_length_turns: int
 
 
 class SnapshotResponse(BaseModel):
@@ -56,6 +65,7 @@ class GameStateResponse(BaseModel):
     id: int
     current_turn: int
     status: str
+    game_length_turns: int
     snapshot: SnapshotResponse
 
 

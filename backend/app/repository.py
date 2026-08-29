@@ -16,8 +16,14 @@ from .engine.types import (
 from .models import CohortRow, DecisionRow, FinancialSnapshotRow, GameRow, MarketStateRow
 
 
-def create_game(session: Session, initial_capital: float, rng_seed: int) -> GameRow:
-    game = GameRow(rng_seed=rng_seed, initial_capital=initial_capital, current_turn=0, status=GameStatus.RUNNING.value)
+def create_game(session: Session, initial_capital: float, rng_seed: int, game_length_turns: int = 120) -> GameRow:
+    game = GameRow(
+        rng_seed=rng_seed,
+        initial_capital=initial_capital,
+        current_turn=0,
+        status=GameStatus.RUNNING.value,
+        game_length_turns=game_length_turns,
+    )
     session.add(game)
     session.commit()
     session.refresh(game)
@@ -123,7 +129,10 @@ def apply_turn(session: Session, game_id: int, decision: Decision) -> FinancialS
     cohorts = active_cohorts(session, game_id)
 
     rng = np.random.default_rng(game.rng_seed + game.current_turn)
-    result = run_turn(game.current_turn, cohorts, market_state, assets, snapshot.equity, decision, rng)
+    result = run_turn(
+        game.current_turn, cohorts, market_state, assets, snapshot.equity, decision, rng,
+        game_length_turns=game.game_length_turns,
+    )
 
     session.add(
         DecisionRow(

@@ -381,7 +381,7 @@ $$\text{AssetsTotal} \equiv \text{Liabilities} + \text{Equity}$$
 | `RATE_REVERSION_SPEED` | 0.1 | 금리 평균회귀 속도 계수 |
 | `RATE_NOISE_STD` | 0.002 (0.2%) | 월별 금리 랜덤워크 표준편차 |
 | `DEPOSIT_RATE_SPREAD` | 0.005 (0.5%) | 시장금리 대비 예금금리 할인 폭 |
-| `GAME_LENGTH_TURNS` | 120 | 총 게임 턴 수 (120개월 = 10년) |
+| `GAME_LENGTH_TURNS` (기본값) | 120 | 게임 생성 시 플레이어가 지정하는 총 게임 턴 수의 기본값(120개월 = 10년). `POST /games`의 `game_length_turns` 파라미터로 게임별 재정의 가능(1~600 범위). 종신보험 CSM 기대 잔존기간이 통상 120턴을 초과하므로(§7.4 `CSM_WHOLE_LIFE_HORIZON_CAP_TURNS` 참조), CSM이 게임 내에서 더 많이 환입되도록 최종 턴 수를 늘릴 수 있습니다 — 다만 §8.6에서 설명하듯 미환입 CSM은 원래도 스코어에 영향을 주지 않으므로, 이는 순전히 "환입까지 지켜보고 싶다"는 관측/난이도 선택입니다. |
 | `INITIAL_CAPITAL_DEFAULT`| 10,000,000,000 원 | 기본 초기 자본금 (100억 원) |
 
 ### 7.4 계약서비스마진(CSM) 파라미터

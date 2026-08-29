@@ -17,6 +17,7 @@ def run_turn(
     equity: float,
     decision: Decision,
     rng: np.random.Generator,
+    game_length_turns: int = GAME_LENGTH_TURNS,
 ) -> TurnResult:
     new_market = advance_market_state(market_state, rng)
     next_turn = new_market.turn
@@ -140,7 +141,7 @@ def run_turn(
         new_business_premium_by_channel=new_business_premium_by_channel,
         commission_expense_by_channel=commission_expense_by_channel,
     )
-    if snapshot.status == GameStatus.RUNNING and next_turn >= GAME_LENGTH_TURNS:
+    if snapshot.status == GameStatus.RUNNING and next_turn >= game_length_turns:
         snapshot.status = GameStatus.COMPLETED
 
     return TurnResult(cohorts=updated_cohorts, market_state=new_market, assets=assets_final, snapshot=snapshot)

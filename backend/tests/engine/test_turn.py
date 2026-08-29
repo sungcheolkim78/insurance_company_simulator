@@ -119,3 +119,19 @@ def test_run_turn_marks_completed_at_game_length():
 
     assert result.snapshot.turn == 120
     assert result.snapshot.status == GameStatus.COMPLETED
+
+
+def test_run_turn_respects_custom_game_length_turns():
+    rng = np.random.default_rng(42)
+    market_119 = MarketState(turn=119, interest_rate=0.03, stock_regime=StockRegime.NORMAL, stock_return_realized=0.01)
+    assets = AssetBalances(deposit=5_000_000_000.0, bond=3_000_000_000.0, stock=2_000_000_000.0)
+
+    not_yet = run_turn(119, [], market_119, assets, 10_000_000_000.0, base_decision(), rng, game_length_turns=200)
+    assert not_yet.snapshot.turn == 120
+    assert not_yet.snapshot.status == GameStatus.RUNNING
+
+    rng2 = np.random.default_rng(42)
+    market_199 = MarketState(turn=199, interest_rate=0.03, stock_regime=StockRegime.NORMAL, stock_return_realized=0.01)
+    at_length = run_turn(199, [], market_199, assets, 10_000_000_000.0, base_decision(), rng2, game_length_turns=200)
+    assert at_length.snapshot.turn == 200
+    assert at_length.snapshot.status == GameStatus.COMPLETED

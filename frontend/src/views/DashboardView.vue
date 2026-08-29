@@ -65,7 +65,7 @@ async function handleEndGame() {
 <template>
   <div v-if="store.snapshot" class="mx-auto max-w-6xl space-y-6 p-8">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-slate-800">턴 {{ store.currentTurn }} / 120</h1>
+      <h1 class="text-2xl font-bold text-slate-800">턴 {{ store.currentTurn }} / {{ store.gameLengthTurns }}</h1>
       <button
         class="rounded border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
         :disabled="isBusy"

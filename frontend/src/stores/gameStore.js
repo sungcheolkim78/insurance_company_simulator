@@ -6,6 +6,7 @@ export const useGameStore = defineStore('game', {
     gameId: null,
     currentTurn: 0,
     status: 'running',
+    gameLengthTurns: 120,
     snapshot: null,
     history: [],
     config: null,
@@ -23,6 +24,7 @@ export const useGameStore = defineStore('game', {
       ])
       this.currentTurn = game.current_turn
       this.status = game.status
+      this.gameLengthTurns = game.game_length_turns
       this.snapshot = game.snapshot
       this.history = history
       this.config = config
@@ -31,6 +33,7 @@ export const useGameStore = defineStore('game', {
       const game = await submitTurn(this.gameId, decision)
       this.currentTurn = game.current_turn
       this.status = game.status
+      this.gameLengthTurns = game.game_length_turns
       this.snapshot = game.snapshot
       this.history.push(game.snapshot)
     },

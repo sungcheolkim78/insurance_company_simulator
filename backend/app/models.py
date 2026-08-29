@@ -16,6 +16,7 @@ class GameRow(SQLModel, table=True):
     initial_capital: float
     current_turn: int
     status: str
+    game_length_turns: int = 120
     created_at: datetime = Field(default_factory=_utcnow)
 
 
