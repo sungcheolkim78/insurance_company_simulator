@@ -6,6 +6,7 @@ import { deleteGame } from '../api/client'
 import KpiCards from '../components/KpiCards.vue'
 import HistoryCharts from '../components/HistoryCharts.vue'
 import MonitoringPanel from '../components/MonitoringPanel.vue'
+import FinancialStatements from '../components/FinancialStatements.vue'
 import DecisionPanel from '../components/DecisionPanel.vue'
 import TurnControl from '../components/TurnControl.vue'
 
@@ -81,6 +82,7 @@ async function handleEndGame() {
         <HistoryCharts :history="store.history" />
       </div>
       <div class="space-y-6">
+        <FinancialStatements :snapshot="store.snapshot" />
         <DecisionPanel @submit="handleDecisionSubmit" />
         <TurnControl :disabled="isBusy || store.status !== 'running'" @run-turns="runTurns" />
       </div>
