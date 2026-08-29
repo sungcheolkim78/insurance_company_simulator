@@ -30,6 +30,10 @@ class CohortRow(SQLModel, table=True):
     in_force_count: float
     unit_size: float
     reserve_balance: float
+    csm_balance: float = 0.0
+    csm_locked_in_rate_monthly: float = 0.0
+    csm_straight_line_release: float = 0.0
+    csm_periods_remaining: int = 0
 
 
 class MarketStateRow(SQLModel, table=True):
@@ -90,3 +94,8 @@ class FinancialSnapshotRow(SQLModel, table=True):
     premium_income_by_product: dict = Field(sa_column=Column(JSON))
     new_business_premium_by_channel: dict = Field(sa_column=Column(JSON))
     commission_expense_by_channel: dict = Field(sa_column=Column(JSON))
+    total_csm: float
+    csm_change: float
+    csm_release: float
+    csm_new_business: float
+    onerous_loss: float

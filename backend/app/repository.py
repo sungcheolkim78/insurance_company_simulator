@@ -62,6 +62,11 @@ def create_game(session: Session, initial_capital: float, rng_seed: int) -> Game
             premium_income_by_product={p.value: 0.0 for p in ProductCode},
             new_business_premium_by_channel={c.value: 0.0 for c in ChannelCode},
             commission_expense_by_channel={c.value: 0.0 for c in ChannelCode},
+            total_csm=0.0,
+            csm_change=0.0,
+            csm_release=0.0,
+            csm_new_business=0.0,
+            onerous_loss=0.0,
         )
     )
     session.commit()
@@ -98,6 +103,10 @@ def active_cohorts(session: Session, game_id: int) -> list[CohortState]:
             in_force_count=row.in_force_count,
             unit_size=row.unit_size,
             reserve_balance=row.reserve_balance,
+            csm_balance=row.csm_balance,
+            csm_locked_in_rate_monthly=row.csm_locked_in_rate_monthly,
+            csm_straight_line_release=row.csm_straight_line_release,
+            csm_periods_remaining=row.csm_periods_remaining,
         )
         for row in rows
     ]
@@ -141,6 +150,10 @@ def apply_turn(session: Session, game_id: int, decision: Decision) -> FinancialS
                 in_force_count=cohort.in_force_count,
                 unit_size=cohort.unit_size,
                 reserve_balance=cohort.reserve_balance,
+                csm_balance=cohort.csm_balance,
+                csm_locked_in_rate_monthly=cohort.csm_locked_in_rate_monthly,
+                csm_straight_line_release=cohort.csm_straight_line_release,
+                csm_periods_remaining=cohort.csm_periods_remaining,
             )
         )
 
@@ -184,6 +197,11 @@ def apply_turn(session: Session, game_id: int, decision: Decision) -> FinancialS
         premium_income_by_product=result.snapshot.premium_income_by_product,
         new_business_premium_by_channel=result.snapshot.new_business_premium_by_channel,
         commission_expense_by_channel=result.snapshot.commission_expense_by_channel,
+        total_csm=result.snapshot.total_csm,
+        csm_change=result.snapshot.csm_change,
+        csm_release=result.snapshot.csm_release,
+        csm_new_business=result.snapshot.csm_new_business,
+        onerous_loss=result.snapshot.onerous_loss,
     )
     session.add(snapshot_row)
 

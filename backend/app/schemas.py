@@ -45,6 +45,11 @@ class SnapshotResponse(BaseModel):
     premium_income_by_product: dict[str, float]
     new_business_premium_by_channel: dict[str, float]
     commission_expense_by_channel: dict[str, float]
+    total_csm: float
+    csm_change: float
+    csm_release: float
+    csm_new_business: float
+    onerous_loss: float
 
 
 class GameStateResponse(BaseModel):

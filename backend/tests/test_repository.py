@@ -41,6 +41,7 @@ def test_apply_turn_persists_snapshot_and_advances_game():
     assert snapshot.turn == 1
     assert snapshot.status == "running"
     assert snapshot.premium_income == pytest.approx(10121850.0)
+    assert snapshot.total_csm > 0
     refreshed = session.get(GameRow, game.id)
     assert refreshed.current_turn == 1
 

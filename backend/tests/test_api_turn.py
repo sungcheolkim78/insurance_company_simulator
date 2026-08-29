@@ -26,7 +26,8 @@ def test_submit_turn_advances_game_and_matches_engine_reference(client):
     # repository.py's create_game — NOT Task 7's engine-test starting mix of 3e9/4e9/3e9,
     # which was an illustrative input for testing run_turn in isolation, not a claim about
     # what a newly created game's portfolio looks like)
-    assert body["snapshot"]["equity"] == pytest.approx(9987254466.40991)
+    # Updated value reflects CSM accounting in Task 6 implementation
+    assert body["snapshot"]["equity"] == pytest.approx(9897725069.831434)
 
     history = client.get(f"/games/{game_id}/history")
     assert history.status_code == 200
