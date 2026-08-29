@@ -82,6 +82,7 @@ const roeAnnual = computed(() => {
   return (props.snapshot.net_income / props.prevSnapshot.equity) * 12
 })
 const solvencyProxy = computed(() => safeDiv(props.snapshot.equity, props.snapshot.total_reserve))
+const csmToEquityRatio = computed(() => safeDiv(props.snapshot.total_csm, props.snapshot.equity))
 
 function toneLowerIsBetter(value, threshold) {
   if (value === null) return 'text-slate-500'
@@ -214,6 +215,34 @@ function toneHigherIsBetter(value, threshold) {
           <div class="text-slate-500">자본완충비율 (자본/준비금)</div>
           <div class="font-bold" :class="toneHigherIsBetter(solvencyProxy, 0.9)">
             {{ formatPct(solvencyProxy, 1) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded border border-slate-200 p-4">
+      <h2 class="mb-3 font-semibold text-slate-800">계약서비스마진 (CSM)</h2>
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <div class="text-slate-500">총 CSM 잔액</div>
+          <div class="font-bold">{{ formatWon(snapshot.total_csm) }}</div>
+        </div>
+        <div>
+          <div class="text-slate-500">이번 턴 CSM 환입액</div>
+          <div class="font-bold">{{ formatWon(snapshot.csm_release) }}</div>
+        </div>
+        <div>
+          <div class="text-slate-500">신규 CSM 설정액</div>
+          <div class="font-bold">{{ formatWon(snapshot.csm_new_business) }}</div>
+        </div>
+        <div>
+          <div class="text-slate-500">CSM / 자본총계</div>
+          <div class="font-bold">{{ formatPct(csmToEquityRatio, 1) }}</div>
+        </div>
+        <div class="col-span-2">
+          <div class="text-slate-500">손실부담계약손실 (이번 턴)</div>
+          <div class="font-bold" :class="snapshot.onerous_loss > 0 ? 'text-red-600' : 'text-slate-800'">
+            {{ formatWon(snapshot.onerous_loss) }}
           </div>
         </div>
       </div>
