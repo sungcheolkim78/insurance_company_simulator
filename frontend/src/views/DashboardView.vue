@@ -1,13 +1,38 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
 import KpiCards from '../components/KpiCards.vue'
 import HistoryCharts from '../components/HistoryCharts.vue'
+import DecisionPanel from '../components/DecisionPanel.vue'
+import TurnControl from '../components/TurnControl.vue'
 
 const props = defineProps({ id: String })
 const store = useGameStore()
+const router = useRouter()
+const lastDecision = ref(null)
+const isBusy = ref(false)
 
 onMounted(() => store.load(Number(props.id)))
+
+async function handleDecisionSubmit(decision) {
+  lastDecision.value = decision
+  await runTurns(1)
+}
+
+async function runTurns(count) {
+  if (!lastDecision.value || isBusy.value) return
+  isBusy.value = true
+  for (let i = 0; i < count; i++) {
+    if (store.status !== 'running') break
+    // eslint-disable-next-line no-await-in-loop
+    await store.advanceTurn(lastDecision.value)
+  }
+  isBusy.value = false
+  if (store.status !== 'running') {
+    router.push(`/games/${props.id}/result`)
+  }
+}
 </script>
 
 <template>
@@ -15,6 +40,8 @@ onMounted(() => store.load(Number(props.id)))
     <h1 class="text-2xl font-bold text-slate-800">턴 {{ store.currentTurn }} / 120</h1>
     <KpiCards :snapshot="store.snapshot" />
     <HistoryCharts :history="store.history" />
+    <DecisionPanel @submit="handleDecisionSubmit" />
+    <TurnControl :disabled="isBusy || store.status !== 'running'" @run-turns="runTurns" />
   </div>
   <div v-else class="p-8 text-slate-500">불러오는 중...</div>
 </template>

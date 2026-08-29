@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import NewGameView from './views/NewGameView.vue'
 import DashboardView from './views/DashboardView.vue'
+import ResultView from './views/ResultView.vue'
 import './style.css'
 
 const router = createRouter({
@@ -11,6 +12,7 @@ const router = createRouter({
   routes: [
     { path: '/', component: NewGameView },
     { path: '/games/:id', component: DashboardView, props: true },
+    { path: '/games/:id/result', component: ResultView, props: true },
   ],
 })
 
