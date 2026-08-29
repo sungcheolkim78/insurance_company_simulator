@@ -860,11 +860,17 @@ In `backend/tests/engine/test_turn.py`, update `test_run_turn_matches_reference_
 
 ```python
     assert result.snapshot.total_csm > 0
-    assert result.snapshot.csm_new_business == pytest.approx(result.snapshot.total_csm + result.snapshot.csm_release, rel=1e-9)
+    # csm_new_business is the pre-accretion CSM at issuance; total_csm + csm_release is the
+    # post-accretion split (balance remaining + released) after one turn of interest accretion
+    # at interest_rate/12, since all 4 cohorts are brand new this turn (issued and stepped
+    # forward once in the same turn).
+    assert result.snapshot.csm_new_business * (
+        1 + result.snapshot.interest_rate / 12
+    ) == pytest.approx(result.snapshot.total_csm + result.snapshot.csm_release, rel=1e-9)
     assert result.snapshot.onerous_loss == pytest.approx(0.0)
 ```
 
-(The second assertion holds because `csm_change = total_csm_end − 0` on turn 1, and `total_csm_end = csm_new_business − csm_release` since all 4 cohorts are brand new this turn.)
+(Ruling, corrected during implementation: the original text below undersold that new cohorts also get one turn of CSM interest accretion in their issuance turn — per Task 5, `step_cohort` rolls forward CSM uniformly for every cohort it processes, brand-new ones included, since their CSM fields are already set before `step_cohort` runs. So the identity needs the `(1 + interest_rate/12)` accretion factor on the left-hand side; without it the assertion is off by that turn's accretion, not equal. Original — now superseded — reasoning: "the second assertion holds because `csm_change = total_csm_end − 0` on turn 1, and `total_csm_end = csm_new_business − csm_release` since all 4 cohorts are brand new this turn.")
 
 Also update `test_run_turn_preserves_accounting_identity_across_turns` — the accounting identity now includes CSM. Replace:
 
