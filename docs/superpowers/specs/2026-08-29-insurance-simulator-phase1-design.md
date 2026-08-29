@@ -65,7 +65,70 @@ Phase 1 범위 밖이다.
 | `Decision` | game_id, turn, pricing_multiplier[product], underwriting_strictness[product], commission_rate[channel], marketing_spend[channel], asset_allocation{deposit,bond,stock}, dividend_payout | 턴별 플레이어 입력 |
 | `FinancialSnapshot` | game_id, turn, premium_income, investment_income, death_claims, surrender_payouts, maturity_payouts, commission_expense, marketing_expense, opex, reserve_change, net_income, deposit_balance, bond_balance, stock_balance, total_reserve, equity | 턴별 손익계산서+재무상태표 |
 
+### 5.1 플레이어 모니터링 지표 체계 (시계열 관측 항목)
+
+플레이어는 게임 진행 중 다음 5대 영역의 지표를 시계열 차트 및 대시보드로 모니터링하며 경영 의사결정을 내려야 한다.
+
+1. **거시 시장 및 자산운용 동향 (Market & Investment Trends)**
+   - **시장금리 (`interest_rate`)**: 채권/예금 수익률의 기준 지표 및 장기 부리 부담 평가.
+   - **주식 레짐 및 월 수익률 (`stock_regime`, `stock_return_realized`)**: 호황(Boom)/평상(Normal)/위기(Crisis) 국면 파악 및 주식 편입 비중 조절 지표.
+   - **총 포트폴리오 수익률 (`portfolio_return_monthly`)**: 전체 운용자산 대비 월 투자수익 비율.
+   - **자산군별 잔액 및 비중 (`deposit`, `bond`, `stock`)**: 유동성/안전성/수익성 포트폴리오 배분 현황.
+
+2. **계약 포트폴리오 및 영업 성과 지표 (Policy & Channel Portfolio)**
+   - **상품별/채널별 보유계약수 (`in_force_count`)**: 유지 중인 유효 계약자 규모의 성장/정체 추이.
+   - **월간 신계약 건수 (`new_policies`)**: 각 채널(전속/GA) 및 상품(종신/저축성)별 신규 유입량.
+   - **보험료 수입 분해 (`premium_income`)**: 신계약 초회보험료 및 유지계약 계속보험료 규모.
+   - **채널별 생산성 (`channel_capacity`)**: 마케팅비 및 수수료율 집행 대비 실제 판매 역량.
+
+3. **위험 및 계약 이탈 지표 (Risk & Decrement Metrics)**
+   - **사망보험금 및 위험손해율 (`death_claims / premium_income`)**: 언더라이팅 엄격도에 따른 사망 리스크 통제 효과.
+   - **월간 및 연환산 해지율 (`lapse_rate`) & 해지환급금 (`surrender_payouts`)**: 가격 인상에 따른 계약 이탈 및 유동성 유출 감시.
+   - **만기지급금 추이 (`maturity_payouts`)**: 저축성보험 만기 도달(60턴)에 따른 대규모 자금 유출 사전 대비.
+
+4. **손익 및 경영 효율성 지표 (P&L & Profitability)**
+   - **보험손익 vs 투자손익 분해**: 보험영업 마진(보험료 - 보험금 - 사업비)과 자산운용 마진의 기여도 분석.
+   - **사업비율 (`expense_ratio = (commission + marketing + opex) / premium_income`)**: 과도한 판관비/수수료 집행 여부 점검.
+   - **합산비율 (`combined_ratio = (claims + surrenders + expenses) / premium_income`)**: 100% 초과 시 보험영업 적자.
+   - **월간 당기순이익 (`net_income`) 및 누적 손익**: 흑자/적자 지속 여부 모니터링.
+
+5. **재무 건전성 및 자본 지표 (Balance Sheet & Solvency)**
+   - **순자산(자본총계, `equity`)**: 최종 점수이자 파산 위험(Equity $\le 0$) 회피의 핵심 완충 자본.
+   - **총 책임준비금 (`total_reserve`)**: 장래 보험금 지급을 위한 부채 규모.
+   - **자본완충비율 (Solvency Proxy = `equity / total_reserve`)**: 부채 대비 순자산 여력.
+
 ## 6. 시뮬레이션 엔진 — 턴 처리 파이프라인
+
+### 6.0 의사결정 조정 요소(Decision Controls) 가이드 및 트레이드오프
+
+플레이어가 매 턴 조정할 수 있는 6가지 결정 변수의 메커니즘과 상충관계(Trade-off)는 다음과 같다.
+
+1. **상품 가격 배수 (`pricing_multiplier[product]`)**
+   - **효과**: 기준 가격에 곱해져 1건당 수취하는 월 보험료를 결정.
+   - **Trade-off**: 가격을 올리면 건당 마진과 보험료 수입이 증가하지만, 가격 탄력도($-2.0$)에 의해 신계약 수요가 급감하고 계약자 해지율($1.5$승)이 상승함.
+
+2. **언더라이팅 엄격도 (`underwriting_strictness[product]`, $0 \sim 1$)**
+   - **효과**: 신계약 인수 심사의 엄격성 수준.
+   - **Trade-off**: 엄격하게 설정할수록 경험 사망률과 원가율이 최대 30% 개선되지만, 청약 승인율이 최대 40%까지 하락하여 신규 가입자 수가 감소함.
+
+3. **채널 수수료율 (`commission_rate[channel]`)**
+   - **효과**: 신계약 유치 시 설계사/GA에 지급하는 초회 수수료율.
+   - **Trade-off**: 수수료율을 높이면 채널 생산성($\text{Capacity}$)이 증가하여 신계약이 확대되지만, 초회 신계약 수수료 비용($\text{CommissionExpense}$)이 즉시 증가해 단기 순이익이 악화됨. (GA 채널의 민감도가 전속보다 높음)
+
+4. **채널 마케팅비 (`marketing_spend[channel]`)**
+   - **효과**: 브랜드 인지도 및 영업 지원을 위한 채널별 예산 투입.
+   - **Trade-off**: 투입 시 신계약 창출 능력이 확장되나 제곱근($\sqrt{\cdot}$) 체감 효과가 적용되므로 과도한 지출은 사업비 낭비와 현금 유출을 초래함.
+
+5. **신규 현금 자산 배분 비중 (`asset_allocation`: 예금, 채권, 주식)**
+   - **효과**: 매 턴 발생하는 신규 순현금흐름(흑자분)을 어떤 자산에 배분할지 결정 (합계 100%).
+   - **Trade-off**: 
+     - **예금(Deposit)**: 시장금리-0.5% 수준의 안전한 고정 수익.
+     - **채권(Bond)**: 시장금리 연동 안정적 이자 수익.
+     - **주식(Stock)**: 높은 기대수익(호황 시 최대 +1.5%/월)을 제공하나 Crisis 국면(-3.0%/월 및 8% 변동성) 시 대규모 자산 가치 훼손 발생.
+
+6. **배당금 지급액 (`dividend_payout`)**
+   - **효과**: 턴 종료 시 사외로 유출되는 주주 배당금.
+   - **Trade-off**: 이익 잉여금을 환원하는 수단이나, 자본(순자산)을 직접 차감하므로 불필요하게 많이 지급하면 급격한 시장 충격 시 자본잠식(파산) 위험에 노출됨.
 
 아래 상수(요율, 탄력성 등)는 **초기 밸런스 기본값**이며 `ProductConfig`/`ChannelConfig` 시드
 데이터로 관리되어 코드 수정 없이 조정 가능해야 한다.

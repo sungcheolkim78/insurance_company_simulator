@@ -228,3 +228,6 @@ backend/*.db
 # Frontend
 frontend/node_modules/
 frontend/dist/
+
+# Playwright MCP
+.playwright-mcp/
