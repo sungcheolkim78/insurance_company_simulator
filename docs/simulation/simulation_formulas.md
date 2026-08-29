@@ -277,6 +277,7 @@ $$\text{OnerousLoss}_{\text{cohort}} = \max\left(0,\; \text{CommissionExpense}_{
 1. **이자부리**: $\text{csm\_balance} \leftarrow \text{csm\_balance} \times (1 + \text{csm\_locked\_in\_rate\_monthly})$
 2. **환입액 결정** (정액법, straight-line — 실무에서 인정되는 CSM 상각 방식 중 하나):
    - 코호트가 이번 턴 **소멸**(사망·해지로 전량 소진 또는 만기 도달)하면: $\text{CSMRelease} = \text{csm\_balance}$ (잔액 전액 환입하여 완전 상각 보장)
+   - 코호트가 소멸하지 않았더라도 **투영기간이 종료**($\text{csm\_periods\_remaining} \le 1$)되었으면: 마찬가지로 $\text{CSMRelease} = \text{csm\_balance}$ (잔액 전액 환입). 즉, 최초 인식 시점에 설정한 투영기간($N$) 끝에 도달했지만 코호트가 여전히 유지 중인 경우에도 잔액이 투영기간 이후로 이월되어 방치되지 않도록 전액 상각합니다.
    - 그렇지 않으면: $\text{CSMRelease} = \min(\text{csm\_balance},\; \text{csm\_straight\_line\_release})$, 그리고 $\text{csm\_periods\_remaining} \leftarrow \text{csm\_periods\_remaining} - 1$
 3. $\text{csm\_balance} \leftarrow \text{csm\_balance} - \text{CSMRelease}$
 
@@ -444,6 +445,8 @@ $$\text{AssetsTotal} \equiv \text{Liabilities} + \text{Equity}$$
    $$\text{CSMToEquityRatio} = \frac{\text{TotalCSM}}{\text{Equity}}$$
    비율이 높을수록 현재 자본 대비 향후 환입될 이익이 두터움을 의미(성장기에 자연스럽게 상승).
 5. **손실부담계약손실 ($\text{OnerousLoss}$)**: 발생 시 해당 턴 신계약 가격/원가 구조가 손실을 내고 있다는 즉각적인 경고 신호.
+
+> **스코어와 CSM의 관계**: 최종 게임 스코어는 120턴 종료 시점(또는 파산 시점)의 자본총계($\text{Equity}$)이며, 설계상 이 시점에 아직 환입되지 않은 $\text{TotalCSM}$ 잔액은 스코어에 포함되지 않습니다. 즉, 게임 종료 시 $\text{TotalCSM}$이 크다는 것은 플레이어가 실제로 쌓아온 가치이지만 채점 규칙상 인정받지 못하는 미실현 이익을 의미합니다. 특히 종신보험(`whole_life`)은 상품 특성상 CSM 투영기간의 기댓값이 게임 전체 길이(120턴)를 초과하는 경우가 많아, 종신보험 위주로 구성된 포트폴리오는 구조적으로 CSM 상당 부분을 게임 내에 환입하지 못하고 종료됩니다. 이는 의도된 난이도 요소이며 별도의 보정 로직 없이 이 문서에만 기록합니다.
 
 ---
 

@@ -67,6 +67,12 @@ docker-compose up --build
 podman-compose down
 ```
 
+> ⚠️ **DB 스키마 변경 시 주의**: 이 프로젝트에는 마이그레이션 도구가 없습니다. `init_db()`(`backend/app/db.py`)는 `SQLModel.metadata.create_all()`을 호출하는데, 이는 존재하지 않는 테이블만 새로 생성할 뿐 기존 테이블의 컬럼은 변경하지 않습니다. `backend/app/models.py`를 건드린 변경사항을 pull한 뒤에는 기존 DB를 반드시 재생성해야 합니다:
+> - 컨테이너 환경: `podman-compose down` 후 `podman volume rm <project>_backend-data` 실행, 그다음 `podman-compose up --build -d`
+> - 로컬 실행: `backend/data/simulator.db` 파일 삭제
+>
+> 재생성하지 않으면 이전 스키마의 DB 파일에 접근하는 모든 요청이 500 에러를 반환합니다.
+
 ---
 
 ## 💻 로컬 개발 환경 실행

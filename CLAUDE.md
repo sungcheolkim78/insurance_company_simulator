@@ -40,6 +40,7 @@ insurance_company_simulator/
 │   │   ├── engine/               # Pure Python simulation engine (NO DB/web dependencies)
 │   │   │   ├── cohorts.py        # Policy cohort transition (mortality, lapses, reserves)
 │   │   │   ├── config.py         # Default product/channel parameters and constants
+│   │   │   ├── csm.py            # Contractual Service Margin (CSM) initial recognition & roll-forward
 │   │   │   ├── finance.py        # Investment income, expenses, cashflows, balance sheets
 │   │   │   ├── market.py         # Stochastic interest rate & stock regime Markov chain
 │   │   │   ├── products.py       # Channel capacity & new business pricing elasticity
@@ -53,6 +54,7 @@ insurance_company_simulator/
 │   │   ├── engine/               # Unit tests for pure engine modules
 │   │   │   ├── test_cohorts.py
 │   │   │   ├── test_config.py
+│   │   │   ├── test_csm.py
 │   │   │   ├── test_finance.py
 │   │   │   ├── test_market.py
 │   │   │   ├── test_products.py
@@ -176,7 +178,7 @@ pytest -v
 ### 2. Backend Coding Standards
 - Python 3.11+ type hints (`dict[str, Any]`, `list[CohortState]`, `float | None`).
 - Use `SQLModel` for ORM models (`app/models.py`) and Pydantic models for request/response payloads (`app/schemas.py`).
-- Maintain SQLite database schema compatibility; tables are initialized via `init_db()` in `app/db.py`.
+- Tables are initialized via `init_db()` in `app/db.py`, which calls `SQLModel.metadata.create_all()` — this only creates tables that don't exist yet, it never alters an existing table's columns. **There is no migration tool in this project.** Any change to `app/models.py` that adds/renames/removes a column (especially a non-nullable one) requires recreating the dev DB after pulling: delete `backend/data/simulator.db` for local runs, or `podman-compose down` + `podman volume rm <project>_backend-data` + `podman-compose up --build -d` for containers. Otherwise every request against the stale schema will 500.
 
 ### 3. Frontend Coding Standards
 - Vue 3 Composition API using `<script setup>` SFCs.
