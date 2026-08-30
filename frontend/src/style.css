@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+@theme {
+  --color-board-cream: #FBF1DE;
+  --color-board-cream-deep: #F3E4C6;
+  --color-ink: #2B2A4C;
+  --color-ink-soft: #5B5A7E;
+  --color-tile: #FFFDF6;
+  --color-coral: #E8604C;
+  --color-coral-deep: #C8492F;
+  --color-teal: #2A9D8F;
+  --color-teal-deep: #1F7A6E;
+  --color-mustard: #F2A93B;
+  --color-mustard-deep: #D48F1F;
+  --color-plum: #7B5EA7;
+  --color-plum-deep: #5F4682;
+  --font-display: 'Jua', 'Gowun Dodum', sans-serif;
+  --font-body: 'Gowun Dodum', 'Pretendard', sans-serif;
+}
+
+body {
+  background-color: var(--color-board-cream);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
