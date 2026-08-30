@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { PhFastForward } from '@phosphor-icons/vue'
 
 defineProps({ disabled: Boolean })
 const emit = defineEmits(['run-turns'])
@@ -7,14 +8,15 @@ const autoTurns = ref(6)
 </script>
 
 <template>
-  <div class="flex items-center gap-2 rounded border border-slate-200 p-4">
-    <span class="text-sm text-slate-600">가장 최근 결정으로 자동 진행:</span>
-    <input v-model.number="autoTurns" type="number" min="1" max="24" class="w-16 rounded border px-2 py-1" />
+  <div class="flex items-center gap-3 overflow-hidden rounded-[20px] border-[3px] border-ink bg-tile p-4 shadow-[5px_5px_0_rgba(43,42,76,0.28)]">
+    <span class="text-sm text-ink-soft">가장 최근 결정으로 자동 진행:</span>
+    <input v-model.number="autoTurns" type="number" min="1" max="24" class="w-16 rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
     <button
-      class="rounded border border-slate-800 px-4 py-2 font-semibold text-slate-800 disabled:opacity-50"
+      class="flex items-center gap-1 rounded-full border-2 border-teal-deep bg-tile px-4 py-2 font-bold text-teal-deep shadow-[3px_3px_0_rgba(31,122,110,0.35)] disabled:opacity-50 active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(31,122,110,0.35)]"
       :disabled="disabled"
       @click="emit('run-turns', autoTurns)"
     >
+      <PhFastForward :size="16" weight="fill" />
       자동 진행
     </button>
   </div>
