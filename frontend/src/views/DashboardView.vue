@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import draggable from 'vuedraggable'
 import { useGameStore } from '../stores/gameStore'
 import { deleteGame } from '../api/client'
 import KpiCards from '../components/KpiCards.vue'
@@ -11,7 +12,19 @@ import DecisionPanel from '../components/DecisionPanel.vue'
 import TurnControl from '../components/TurnControl.vue'
 import GameSettingsPanel from '../components/GameSettingsPanel.vue'
 import TurnPathTracker from '../components/TurnPathTracker.vue'
-import { PhDoorOpen, PhGearSix } from '@phosphor-icons/vue'
+import DraggablePanel from '../components/DraggablePanel.vue'
+import {
+  PhArrowCounterClockwise,
+  PhChartBar,
+  PhChartLineUp,
+  PhCoins,
+  PhDiceFive,
+  PhDoorOpen,
+  PhFastForward,
+  PhGearSix,
+  PhScales,
+} from '@phosphor-icons/vue'
+import { loadLayout, resetLayout, saveLayout } from '../utils/dashboardLayout'
 
 const props = defineProps({ id: String })
 const store = useGameStore()
@@ -20,12 +33,47 @@ const lastDecision = ref(null)
 const isBusy = ref(false)
 const errorMessage = ref('')
 const showSettings = ref(false)
+const columns = ref([[], [], []])
 
 const prevSnapshot = computed(() =>
   store.history.length >= 2 ? store.history[store.history.length - 2] : null,
 )
 
-onMounted(() => store.load(Number(props.id)))
+const PANEL_META = {
+  kpi: { component: KpiCards, title: 'KPI 카드', icon: PhCoins, colorClass: 'bg-coral' },
+  monitoring: { component: MonitoringPanel, title: '모니터링 지표', icon: PhChartBar, colorClass: 'bg-teal' },
+  charts: { component: HistoryCharts, title: '히스토리 차트', icon: PhChartLineUp, colorClass: 'bg-mustard' },
+  financials: { component: FinancialStatements, title: '재무제표', icon: PhScales, colorClass: 'bg-plum' },
+  decision: { component: DecisionPanel, title: '의사결정', icon: PhDiceFive, colorClass: 'bg-coral-deep' },
+  turncontrol: { component: TurnControl, title: '턴 진행', icon: PhFastForward, colorClass: 'bg-teal-deep' },
+}
+
+function bindingsFor(key) {
+  if (key === 'kpi') return { snapshot: store.snapshot }
+  if (key === 'monitoring') {
+    return { snapshot: store.snapshot, prevSnapshot: prevSnapshot.value, decision: lastDecision.value }
+  }
+  if (key === 'charts') return { history: store.history }
+  if (key === 'financials') return { snapshot: store.snapshot }
+  if (key === 'decision') return { onSubmit: handleDecisionSubmit }
+  if (key === 'turncontrol') {
+    return { disabled: isBusy.value || store.status !== 'running', onRunTurns: runTurns }
+  }
+  return {}
+}
+
+function persistLayout() {
+  saveLayout(columns.value)
+}
+
+function handleResetLayout() {
+  columns.value = resetLayout()
+}
+
+onMounted(() => {
+  store.load(Number(props.id))
+  columns.value = loadLayout()
+})
 
 async function handleDecisionSubmit(decision) {
   lastDecision.value = decision
@@ -79,6 +127,13 @@ async function handleEndGame() {
       <div class="flex gap-2">
         <button
           class="flex items-center gap-1 rounded-full border-2 border-ink bg-tile px-4 py-2 text-sm font-bold text-ink shadow-[3px_3px_0_rgba(43,42,76,0.28)] active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(43,42,76,0.28)]"
+          @click="handleResetLayout"
+        >
+          <PhArrowCounterClockwise :size="16" weight="fill" />
+          레이아웃 초기화
+        </button>
+        <button
+          class="flex items-center gap-1 rounded-full border-2 border-ink bg-tile px-4 py-2 text-sm font-bold text-ink shadow-[3px_3px_0_rgba(43,42,76,0.28)] active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(43,42,76,0.28)]"
           @click="showSettings = true"
         >
           <PhGearSix :size="16" weight="fill" />
@@ -95,19 +150,67 @@ async function handleEndGame() {
       </div>
     </div>
     <p v-if="errorMessage" class="text-sm text-coral-deep">{{ errorMessage }}</p>
-    <KpiCards :snapshot="store.snapshot" />
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <div class="space-y-6">
-        <MonitoringPanel :snapshot="store.snapshot" :prev-snapshot="prevSnapshot" :decision="lastDecision" />
-      </div>
-      <div class="space-y-6">
-        <HistoryCharts :history="store.history" />
-      </div>
-      <div class="space-y-6">
-        <FinancialStatements :snapshot="store.snapshot" />
-        <DecisionPanel @submit="handleDecisionSubmit" />
-        <TurnControl :disabled="isBusy || store.status !== 'running'" @run-turns="runTurns" />
-      </div>
+      <draggable
+        v-model="columns[0]"
+        :item-key="(key) => key"
+        group="dashboard-panels"
+        handle=".drag-handle"
+        ghost-class="opacity-40"
+        class="min-h-[80px] space-y-6 rounded-[14px] border-2 border-dashed border-transparent transition-colors"
+        @change="persistLayout"
+      >
+        <template #item="{ element }">
+          <DraggablePanel
+            :panel-key="element"
+            :title="PANEL_META[element].title"
+            :icon="PANEL_META[element].icon"
+            :color-class="PANEL_META[element].colorClass"
+          >
+            <component :is="PANEL_META[element].component" v-bind="bindingsFor(element)" />
+          </DraggablePanel>
+        </template>
+      </draggable>
+      <draggable
+        v-model="columns[1]"
+        :item-key="(key) => key"
+        group="dashboard-panels"
+        handle=".drag-handle"
+        ghost-class="opacity-40"
+        class="min-h-[80px] space-y-6 rounded-[14px] border-2 border-dashed border-transparent transition-colors"
+        @change="persistLayout"
+      >
+        <template #item="{ element }">
+          <DraggablePanel
+            :panel-key="element"
+            :title="PANEL_META[element].title"
+            :icon="PANEL_META[element].icon"
+            :color-class="PANEL_META[element].colorClass"
+          >
+            <component :is="PANEL_META[element].component" v-bind="bindingsFor(element)" />
+          </DraggablePanel>
+        </template>
+      </draggable>
+      <draggable
+        v-model="columns[2]"
+        :item-key="(key) => key"
+        group="dashboard-panels"
+        handle=".drag-handle"
+        ghost-class="opacity-40"
+        class="min-h-[80px] space-y-6 rounded-[14px] border-2 border-dashed border-transparent transition-colors"
+        @change="persistLayout"
+      >
+        <template #item="{ element }">
+          <DraggablePanel
+            :panel-key="element"
+            :title="PANEL_META[element].title"
+            :icon="PANEL_META[element].icon"
+            :color-class="PANEL_META[element].colorClass"
+          >
+            <component :is="PANEL_META[element].component" v-bind="bindingsFor(element)" />
+          </DraggablePanel>
+        </template>
+      </draggable>
     </div>
     <GameSettingsPanel
       v-if="showSettings"
