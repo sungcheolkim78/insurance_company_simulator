@@ -1,7 +1,15 @@
 # 보험회사 운영 시뮬레이션 (Insurance Company Simulator)
 
-턴제(월 단위, 총 120턴/10년) 보험회사 경영 시뮬레이션 웹 애플리케이션입니다.  
-플레이어는 보험사의 최고경영자(CEO)가 되어 매월 신계약 판매, 언더라이팅, 영업채널 수수료/마케팅, 자산 배분, 배당 결정을 내리며 10년 후 **최종 순자산(자본총계)**을 극대화하는 것을 목표로 합니다.
+턴제(월 단위, 기본 120턴/10년, 최대 600턴까지 설정 가능) 보험회사 경영 시뮬레이션 웹 애플리케이션입니다.  
+플레이어는 보험사의 최고경영자(CEO)가 되어 매월 신계약 판매, 언더라이팅, 영업채널 수수료/마케팅, 자산 배분, 배당 결정을 내리며 최종 턴 시점의 **최종 순자산(자본총계)**을 극대화하는 것을 목표로 합니다.
+
+---
+
+## 🖥️ 게임 화면
+
+매 턴 3단 구성의 대시보드에서 KPI, 모니터링 지표, 재무제표를 확인하고 의사결정을 내립니다. 각 패널은 드래그로 자유롭게 재배치할 수 있습니다.
+
+![턴 진행 화면](docs/screenshots/dashboard-turn.png)
 
 ---
 
@@ -26,22 +34,24 @@
 1. 영업채널 역량 계산 (마케팅비, 수수료율)
 2. 신계약 청약 및 인수심사(언더라이팅) 통과율 산출 -> 새 코호트 생성
 3. 기존 코호트 전이 (사망, 해지, 만기금 지급 및 준비금 갱신)
-4. 시장 상태 갱신 (금리 평균회귀 + 주가 레짐 마코프 체인)
-5. 자산운용 수익 인식 및 신규 순현금흐름 자산 배분
-6. 손익계산서(P&L) 및 재무상태표(B/S) 롤포워드 -> 순자산(Equity) 갱신
+4. 계약서비스마진(CSM) 최초 인식 및 롤포워드 (IFRS 17 방식)
+5. 시장 상태 갱신 (금리 평균회귀 + 주가 레짐 마코프 체인)
+6. 자산운용 수익 인식 및 신규 순현금흐름 자산 배분
+7. 손익계산서(P&L) 및 재무상태표(B/S) 롤포워드 -> 순자산(Equity) 갱신
 ```
 
 ### 3. 게임 종료 조건
-- **정상 종료 (`completed`)**: 120턴(10년) 완주 시 종료.
+- **정상 종료 (`completed`)**: 게임 생성 시 설정한 최종 턴 수(`game_length_turns`, 1~600, 기본 120턴/10년) 완주 시 종료.
 - **파산 (`bankrupt`)**: 턴 종료 시점 순자산(자본총계) $\le$ 0 일 경우 즉시 파산 처리.
+- **점수**: 마지막 플레이 턴의 순자산(자본총계).
 
 ---
 
 ## 🛠 기술 스택 & 아키텍처
 
 - **Backend**: Python 3.11+, FastAPI, SQLModel (SQLAlchemy 2.0 + Pydantic), SQLite
-- **Simulation Engine**: `backend/app/engine/` (DB/웹 의존성이 없는 순수 Python + NumPy 시뮬레이션 엔진)
-- **Frontend**: Vue 3 (Composition API), Vite, Tailwind CSS v4, Pinia, Vue Router, Chart.js (`vue-chartjs`)
+- **Simulation Engine**: `backend/app/engine/` (DB/웹 의존성이 없는 순수 Python + NumPy 시뮬레이션 엔진, 계약서비스마진(CSM) 최초인식·롤포워드 포함)
+- **Frontend**: Vue 3 (Composition API), Vite, Tailwind CSS v4(보드게임 테마 디자인 토큰), Pinia, Vue Router, Chart.js (`vue-chartjs`), `vuedraggable`(대시보드 패널 드래그 재배치), `@phosphor-icons/vue`
 - **Containers**: Podman Compose / Docker Compose
 
 ---
@@ -114,15 +124,19 @@ npm run build
 
 ## 🧪 테스트 실행
 
-백엔드는 `pytest` 기반 단위 및 통합 테스트를 제공합니다.
+백엔드는 `pytest` 기반 단위 및 통합 테스트를, 프론트엔드는 `vitest` 기반 유틸리티 테스트를 제공합니다.
 
 ```bash
-# 가상환경이 활성화된 상태에서
+# 백엔드: 가상환경이 활성화된 상태에서
 cd backend
 pytest -v
 
 # 또는 루트 디렉토리에서 바로 실행
 backend/.venv/bin/pytest backend/tests -v
+
+# 프론트엔드
+cd frontend
+npm run test
 ```
 
 ---
@@ -131,7 +145,7 @@ backend/.venv/bin/pytest backend/tests -v
 
 | 메서드 | 엔드포인트 | 설명 |
 |---|---|---|
-| `POST` | `/games` | 새 게임 생성 (`initial_capital`, `rng_seed`) |
+| `POST` | `/games` | 새 게임 생성 (`initial_capital`, `rng_seed`, `game_length_turns`) |
 | `GET` | `/games` | 저장된 게임 목록 조회 |
 | `GET` | `/games/{id}` | 특정 게임 상태 및 최신 재무 스냅샷 조회 |
 | `GET` | `/games/{id}/config` | 게임 기본 설정(상품 및 채널 메타데이터) 조회 |
@@ -161,17 +175,21 @@ insurance_company_simulator/
 ├── frontend/                     # Vue 3 SPA 프론트엔드
 │   ├── src/
 │   │   ├── api/                  # Axios HTTP 클라이언트
-│   │   ├── components/           # UI 컴포넌트 (의사결정 패널, 차트, KPI 카드)
+│   │   ├── components/           # UI 컴포넌트 (의사결정 패널, 드래그 가능 패널, 재무제표, 모니터링, 차트, KPI 카드 등)
 │   │   ├── stores/               # Pinia 게임 상태 관리
+│   │   ├── utils/                # 대시보드 레이아웃 영속화 등 유틸리티
 │   │   ├── views/                # 화면 뷰 (게임 생성, 대시보드, 결과)
 │   │   └── main.js
 │   ├── package.json
 │   ├── vite.config.js
 │   └── Dockerfile
 ├── docs/                         # 상세 기획 및 아키텍처 스펙 문서
-│   └── superpowers/
-│       ├── specs/2026-08-29-insurance-simulator-phase1-design.md
-│       └── plans/2026-08-29-insurance-simulator-phase1.md
+│   ├── diagrams/                 # 게임 루프·전략 트레이드오프·턴 흐름 설명 다이어그램
+│   ├── screenshots/              # README용 게임 화면 스크린샷
+│   ├── simulation/               # 시뮬레이션 수식, CSM 방법론, 현실성 평가 및 로드맵
+│   └── superpowers/              # 기능별 설계 스펙 및 구현 계획서
+│       ├── specs/
+│       └── plans/
 ├── docker-compose.yml            # 멀티 컨테이너 오케스트레이션 설정
 ├── CLAUDE.md                     # AI 어시스턴트 개발 가이드
 └── README.md
@@ -181,5 +199,7 @@ insurance_company_simulator/
 
 ## 📚 관련 문서
 - [시뮬레이션 수식 및 아키텍처 명세서](docs/simulation/simulation_formulas.md)
+- [CSM(계약서비스마진) 방법론](docs/simulation/csm_methodology.md)
+- [보험 경영 현실성 평가 및 로드맵](docs/simulation/insurance_management_realism_and_roadmap.md)
 - [Phase 1 설계 스펙](docs/superpowers/specs/2026-08-29-insurance-simulator-phase1-design.md)
 - [Phase 1 구현 계획서](docs/superpowers/plans/2026-08-29-insurance-simulator-phase1.md)

@@ -6,7 +6,7 @@ Guidance and instructions for working on the **Insurance Company Simulator** pro
 
 ## Project Overview
 
-**Insurance Company Simulator (보험회사 운영 시뮬레이션)** is a turn-based (monthly, 120 turns / 10 years) single-player insurance company management simulation game.
+**Insurance Company Simulator (보험회사 운영 시뮬레이션)** is a turn-based (monthly, default 120 turns / 10 years, configurable up to 600 turns) single-player insurance company management simulation game.
 
 The player acts as CEO / chief management making strategic decisions each month:
 - **Product Pricing & Underwriting:** Whole Life (`whole_life`) & Savings (`savings`)
@@ -17,15 +17,17 @@ The player acts as CEO / chief management making strategic decisions each month:
 ### Core Simulation Loop
 ```
 Channel Marketing & Commissions -> New Policy Applications & Underwriting -> In-Force Cohorts Update
-  -> Premium Income & Reserve Accruals -> Asset Allocation & Investment Returns
+  -> Premium Income & Reserve Accruals -> CSM Initial Recognition & Roll-forward (IFRS 17-style)
+  -> Market State Update (Interest Rate Mean Reversion + Stock Regime Markov Chain)
+  -> Asset Allocation & Investment Returns
   -> Decrement (Death Claims / Surrenders / Maturities) & Expenses (Commissions / Marketing / Opex)
   -> Net Income & Balance Sheet Update -> Equity Roll-forward
 ```
 
 ### Game Termination & Scoring
-- **Max Turns:** 120 turns (10 years, status: `completed`).
+- **Max Turns:** Configurable per game via `game_length_turns` (1–600, default 120 turns / 10 years, status: `completed`).
 - **Bankruptcy:** If equity $\le$ 0 at end of turn (status: `bankrupt`).
-- **Score:** Final equity at turn 120 (or bankrupt turn and final equity).
+- **Score:** Final equity at the last turn played (either `game_length_turns` or the bankrupt turn).
 
 ---
 
@@ -44,6 +46,7 @@ insurance_company_simulator/
 │   │   │   ├── finance.py        # Investment income, expenses, cashflows, balance sheets
 │   │   │   ├── market.py         # Stochastic interest rate & stock regime Markov chain
 │   │   │   ├── products.py       # Channel capacity & new business pricing elasticity
+│   │   │   ├── turn.py           # Turn orchestrator: wires cohorts/finance/market/csm into one step
 │   │   │   └── types.py          # Engine dataclasses & enums
 │   │   ├── db.py                 # SQLite engine & session dependency
 │   │   ├── models.py             # SQLModel table definitions (GameRow, CohortRow, etc.)
@@ -71,29 +74,39 @@ insurance_company_simulator/
 │   │   ├── api/
 │   │   │   └── client.js         # Axios API client for backend endpoints
 │   │   ├── components/
-│   │   │   ├── DecisionPanel.vue # Input controls for pricing, strictness, channels, assets
-│   │   │   ├── HistoryCharts.vue # Chart.js equity time series
-│   │   │   ├── KpiCards.vue      # Current equity, net income, reserve cards
-│   │   │   └── TurnControl.vue   # Auto-advance turns component
+│   │   │   ├── DecisionPanel.vue       # Input controls for pricing, strictness, channels, assets
+│   │   │   ├── DraggablePanel.vue      # Draggable/reorderable tile wrapper (vuedraggable) for the dashboard grid
+│   │   │   ├── FinancialStatements.vue # Per-turn P&L and end-of-turn balance sheet (incl. CSM lines)
+│   │   │   ├── GameSettingsPanel.vue   # In-game settings modal (layout reset, end game)
+│   │   │   ├── HistoryCharts.vue       # Chart.js money-scaled cash-flow & equity time series
+│   │   │   ├── KpiCards.vue            # Current equity, net income, reserve cards
+│   │   │   ├── MonitoringPanel.vue     # KPI dashboard: market, portfolio, loss ratios, CSM, solvency
+│   │   │   ├── RegimeTimeline.vue      # Stock market regime (Normal/Boom/Crisis) timeline strip
+│   │   │   ├── TurnControl.vue         # Single-turn and auto-advance-N-turns controls
+│   │   │   └── TurnPathTracker.vue     # Turn-path progress signature element
 │   │   ├── stores/
 │   │   │   └── gameStore.js      # Pinia state management for game & history
+│   │   ├── utils/
+│   │   │   └── dashboardLayout.js # Dashboard panel order/visibility persistence (localStorage)
 │   │   ├── views/
-│   │   │   ├── DashboardView.vue # Main dashboard view for active gameplay
-│   │   │   ├── NewGameView.vue   # Game setup screen (capital, seed)
-│   │   │   └── ResultView.vue    # Game over / completion result screen
+│   │   │   ├── DashboardView.vue # Main 3-column dashboard view for active gameplay (draggable panels)
+│   │   │   ├── NewGameView.vue   # Game setup screen (capital, seed, final turn count)
+│   │   │   └── ResultView.vue    # Game over / play-through summary dashboard
 │   │   ├── App.vue
 │   │   ├── main.js               # Vue app initialization and Vue Router setup
-│   │   └── style.css             # Tailwind CSS imports
+│   │   └── style.css             # Tailwind CSS imports + boardgame design tokens
 │   ├── package.json
 │   ├── vite.config.js
 │   └── Dockerfile
 ├── docs/                         # Specifications and implementation plans
+│   ├── diagrams/                 # Explainer diagrams (game loop, strategy trade-offs, turn flow)
 │   ├── simulation/               # Detailed simulation formulas and architecture docs
 │   │   ├── simulation_formulas.md
-│   │   └── csm_methodology.md    # CSM calculation summary + ALM reference-article notes
-│   └── superpowers/
-│       ├── specs/2026-08-29-insurance-simulator-phase1-design.md
-│       └── plans/2026-08-29-insurance-simulator-phase1.md
+│   │   ├── csm_methodology.md    # CSM calculation summary + ALM reference-article notes
+│   │   └── insurance_management_realism_and_roadmap.md # Realism gap assessment & roadmap
+│   └── superpowers/              # Per-feature spec + implementation plan pairs
+│       ├── specs/
+│       └── plans/
 ├── docker-compose.yml
 └── README.md
 ```
@@ -150,6 +163,9 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Run Vitest unit tests (e.g. src/utils/dashboardLayout.test.js)
+npm run test
 ```
 
 ---
@@ -184,8 +200,10 @@ pytest -v
 ### 3. Frontend Coding Standards
 - Vue 3 Composition API using `<script setup>` SFCs.
 - State management strictly in Pinia stores (`src/stores/gameStore.js`).
-- Tailwind CSS v4 for utility classes.
+- Tailwind CSS v4 for utility classes, following the "boardgame" visual identity (design tokens, fonts, icon set in `src/style.css`).
 - Charting with `chart.js` and `vue-chartjs`.
+- Icons via `@phosphor-icons/vue`.
+- Dashboard panels are draggable/reorderable via `vuedraggable`; panel order and visibility persist through `src/utils/dashboardLayout.js` (localStorage-backed, unit-tested with Vitest/jsdom).
 
 ### 4. API Endpoints Reference
 | Method | Endpoint | Description |
