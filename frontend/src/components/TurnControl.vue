@@ -8,7 +8,7 @@ const autoTurns = ref(6)
 </script>
 
 <template>
-  <div class="flex items-center gap-3 overflow-hidden rounded-[20px] border-[3px] border-ink bg-tile p-4 shadow-[5px_5px_0_rgba(43,42,76,0.28)]">
+  <div class="flex items-center gap-3 p-4">
     <span class="text-sm text-ink-soft">가장 최근 결정으로 자동 진행:</span>
     <input v-model.number="autoTurns" type="number" min="1" max="24" class="w-16 rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
     <button
