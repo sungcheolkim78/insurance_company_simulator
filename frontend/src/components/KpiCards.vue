@@ -9,7 +9,7 @@ function formatWon(value) {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+  <div class="grid grid-cols-1 gap-4 @2xl:grid-cols-3">
     <div class="overflow-hidden rounded-[20px] border-[3px] border-ink bg-tile shadow-[5px_5px_0_rgba(43,42,76,0.28)]">
       <div class="flex items-center gap-2 bg-coral px-4 py-2.5 font-display text-white">
         <PhCoins :size="18" weight="fill" />

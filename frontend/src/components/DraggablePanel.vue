@@ -25,7 +25,7 @@ const textClass = computed(() => (props.colorClass === 'bg-mustard' ? 'text-ink'
       <component :is="icon" :size="16" weight="fill" />
       <span>{{ title }}</span>
     </div>
-    <div class="p-1">
+    <div class="@container p-1.5">
       <slot />
     </div>
   </div>

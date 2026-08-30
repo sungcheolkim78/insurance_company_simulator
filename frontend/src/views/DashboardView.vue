@@ -24,7 +24,7 @@ import {
   PhGearSix,
   PhScales,
 } from '@phosphor-icons/vue'
-import { loadLayout, resetLayout, saveLayout } from '../utils/dashboardLayout'
+import { loadLayout, PANEL_KEYS, resetLayout, saveLayout } from '../utils/dashboardLayout'
 
 const props = defineProps({ id: String })
 const store = useGameStore()
@@ -46,6 +46,13 @@ const PANEL_META = {
   financials: { component: FinancialStatements, title: '재무제표', icon: PhScales, colorClass: 'bg-plum' },
   decision: { component: DecisionPanel, title: '의사결정', icon: PhDiceFive, colorClass: 'bg-coral-deep' },
   turncontrol: { component: TurnControl, title: '턴 진행', icon: PhFastForward, colorClass: 'bg-teal-deep' },
+}
+
+if (import.meta.env.DEV) {
+  const missing = PANEL_KEYS.filter((key) => !(key in PANEL_META))
+  if (missing.length > 0) {
+    console.error(`PANEL_META is missing entries for: ${missing.join(', ')}`)
+  }
 }
 
 function bindingsFor(key) {
