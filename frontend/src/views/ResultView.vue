@@ -22,7 +22,7 @@ onMounted(() => {
         <component :is="store.status === 'bankrupt' ? PhSkull : PhConfetti" :size="32" weight="fill" />
         {{ store.status === 'bankrupt' ? '파산' : '경영 종료' }}
       </div>
-      <p class="mb-2 text-ink-soft">최종 턴: {{ store.currentTurn }} / {{ store.gameLengthTurns }}</p>
+      <p class="mb-2 tabular-nums text-ink-soft">최종 턴: {{ store.currentTurn }} / {{ store.gameLengthTurns }}</p>
       <p class="tabular-nums font-display text-3xl">{{ new Intl.NumberFormat('ko-KR').format(Math.round(store.snapshot.equity)) }}원</p>
       <router-link
         to="/"

@@ -34,7 +34,7 @@ const regimeLabel = computed(() => REGIME_LABELS[props.stockRegime] ?? props.sto
 <template>
   <div class="overflow-hidden rounded-[20px] border-[3px] border-ink bg-tile p-4 shadow-[5px_5px_0_rgba(43,42,76,0.28)]">
     <div class="mb-2 flex items-center justify-between text-sm text-ink-soft">
-      <span class="font-display text-base text-ink">턴 {{ currentTurn }} / {{ gameLengthTurns }}</span>
+      <span class="font-display text-base tabular-nums text-ink">턴 {{ currentTurn }} / {{ gameLengthTurns }}</span>
       <span class="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold" :class="regimeChipClass">
         <component :is="regimeIcon" :size="14" weight="fill" />
         {{ regimeLabel }} 국면
@@ -46,7 +46,7 @@ const regimeLabel = computed(() => REGIME_LABELS[props.stockRegime] ?? props.sto
         :style="{ width: `${progressPercent}%`, backgroundImage: trackGradient }"
       />
       <div
-        class="absolute top-1/2 flex h-[30px] w-[30px] -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-tile bg-coral text-xs font-bold text-white shadow-[0_2px_0_rgba(43,42,76,0.28)] transition-[left] duration-500"
+        class="absolute top-1/2 flex h-[30px] w-[30px] -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-tile bg-coral text-xs font-bold tabular-nums text-white shadow-[0_2px_0_rgba(43,42,76,0.28)] transition-[left] duration-500"
         :style="{ left: `${progressPercent}%`, transform: 'translate(-50%, -50%)' }"
       >
         {{ currentTurn }}

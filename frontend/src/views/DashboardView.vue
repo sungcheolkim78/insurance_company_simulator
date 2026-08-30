@@ -11,6 +11,7 @@ import DecisionPanel from '../components/DecisionPanel.vue'
 import TurnControl from '../components/TurnControl.vue'
 import GameSettingsPanel from '../components/GameSettingsPanel.vue'
 import TurnPathTracker from '../components/TurnPathTracker.vue'
+import { PhDoorOpen, PhGearSix } from '@phosphor-icons/vue'
 
 const props = defineProps({ id: String })
 const store = useGameStore()
@@ -77,21 +78,23 @@ async function handleEndGame() {
       </div>
       <div class="flex gap-2">
         <button
-          class="rounded-full border-2 border-ink bg-tile px-4 py-2 text-sm font-bold text-ink shadow-[3px_3px_0_rgba(43,42,76,0.28)] active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(43,42,76,0.28)]"
+          class="flex items-center gap-1 rounded-full border-2 border-ink bg-tile px-4 py-2 text-sm font-bold text-ink shadow-[3px_3px_0_rgba(43,42,76,0.28)] active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(43,42,76,0.28)]"
           @click="showSettings = true"
         >
-          ⚙ 설정
+          <PhGearSix :size="16" weight="fill" />
+          설정
         </button>
         <button
-          class="rounded-full border-2 border-coral-deep bg-tile px-4 py-2 text-sm font-bold text-coral-deep shadow-[3px_3px_0_rgba(200,73,47,0.35)] disabled:opacity-50 active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(200,73,47,0.35)]"
+          class="flex items-center gap-1 rounded-full border-2 border-coral-deep bg-tile px-4 py-2 text-sm font-bold text-coral-deep shadow-[3px_3px_0_rgba(200,73,47,0.35)] disabled:opacity-50 active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(200,73,47,0.35)]"
           :disabled="isBusy"
           @click="handleEndGame"
         >
+          <PhDoorOpen :size="16" weight="fill" />
           게임 종료 &amp; 새 시뮬레이션
         </button>
       </div>
     </div>
-    <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="text-sm text-coral-deep">{{ errorMessage }}</p>
     <KpiCards :snapshot="store.snapshot" />
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div class="space-y-6">
@@ -113,5 +116,5 @@ async function handleEndGame() {
       @close="showSettings = false"
     />
   </div>
-  <div v-else class="p-8 text-slate-500">불러오는 중...</div>
+  <div v-else class="p-8 text-ink-soft">불러오는 중...</div>
 </template>

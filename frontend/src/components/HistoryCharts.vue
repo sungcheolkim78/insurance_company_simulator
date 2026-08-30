@@ -4,6 +4,8 @@ import { Line } from 'vue-chartjs'
 import { CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Tooltip } from 'chart.js'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
+ChartJS.defaults.font.family = "'Gowun Dodum', 'Pretendard', sans-serif"
+ChartJS.defaults.color = '#2B2A4C'
 
 const props = defineProps({ history: Array })
 

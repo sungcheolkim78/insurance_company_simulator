@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { PhBank, PhChartPieSlice, PhHandshake, PhPiggyBank, PhShieldWarning, PhTrendUp } from '@phosphor-icons/vue'
+import { PhChartPieSlice, PhHandshake, PhPiggyBank, PhShieldWarning, PhTrendUp, PhVault } from '@phosphor-icons/vue'
 
 const props = defineProps({
   snapshot: { type: Object, required: true },
@@ -86,12 +86,12 @@ const solvencyProxy = computed(() => safeDiv(props.snapshot.equity, props.snapsh
 const csmToEquityRatio = computed(() => safeDiv(props.snapshot.total_csm, props.snapshot.equity))
 
 function toneLowerIsBetter(value, threshold) {
-  if (value === null) return 'text-slate-500'
-  return value <= threshold ? 'text-emerald-600' : 'text-red-600'
+  if (value === null) return 'text-ink-soft'
+  return value <= threshold ? 'text-teal-deep' : 'text-coral-deep'
 }
 function toneHigherIsBetter(value, threshold) {
-  if (value === null) return 'text-slate-500'
-  return value >= threshold ? 'text-emerald-600' : 'text-red-600'
+  if (value === null) return 'text-ink-soft'
+  return value >= threshold ? 'text-teal-deep' : 'text-coral-deep'
 }
 </script>
 
@@ -227,7 +227,7 @@ function toneHigherIsBetter(value, threshold) {
 
     <div class="overflow-hidden rounded-[20px] border-[3px] border-ink bg-tile shadow-[5px_5px_0_rgba(43,42,76,0.28)]">
       <div class="flex items-center gap-2 bg-teal px-4 py-2.5 font-display text-white">
-        <PhBank :size="18" weight="fill" />
+        <PhVault :size="18" weight="fill" />
         <span>재무건전성</span>
       </div>
       <div class="p-4">

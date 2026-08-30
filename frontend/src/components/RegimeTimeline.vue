@@ -48,13 +48,14 @@ function widthPercent(segment) {
       <div
         v-for="(segment, index) in segments"
         :key="index"
+        class="border-r border-ink/20"
         :style="{ width: widthPercent(segment), backgroundColor: REGIME_COLORS[segment.regime] }"
         :title="`턴 ${segment.startTurn}~${segment.endTurn}: ${REGIME_LABELS[segment.regime] ?? segment.regime}`"
       />
     </div>
     <div class="mt-2 flex gap-4 text-xs text-ink-soft">
       <span v-for="(label, code) in REGIME_LABELS" :key="code" class="flex items-center gap-1">
-        <span class="inline-block h-2 w-2 rounded-full" :style="{ backgroundColor: REGIME_COLORS[code] }" />
+        <span class="inline-block h-2 w-2 rounded-full border border-ink/20" :style="{ backgroundColor: REGIME_COLORS[code] }" />
         {{ label }}
       </span>
     </div>
