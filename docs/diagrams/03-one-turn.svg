@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="700" viewBox="0 0 1600 700">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFF8E7"/><stop offset="1" stop-color="#E9F2EE"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="5" dy="6" stdDeviation="0" flood-color="#2B2A4C" flood-opacity=".18"/></filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#2B2A4C"/></marker>
+    <style>.title{font:700 42px sans-serif;fill:#2B2A4C}.subtitle{font:500 20px sans-serif;fill:#68657B}.h{font:700 24px sans-serif;fill:#2B2A4C}.p{font:500 18px sans-serif;fill:#4D4A61}.num{font:700 28px sans-serif;fill:#fff}.node{stroke:#2B2A4C;stroke-width:3}.arrow{stroke:#2B2A4C;stroke-width:4;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1600" height="700" fill="url(#bg)"/>
+  <text x="80" y="82" class="title">한 턴은 이렇게 흘러갑니다</text>
+  <text x="80" y="120" class="subtitle">결정은 입력이 되고, 월말 결산은 다음 달의 새로운 출발점이 됩니다.</text>
+  <g transform="translate(80 225)">
+    <rect width="210" height="215" rx="25" fill="#FFE8A8" class="node" filter="url(#shadow)"/><circle cx="38" cy="40" r="25" fill="#B77B00"/><text x="38" y="50" text-anchor="middle" class="num">1</text><text x="30" y="100" class="h">결정</text><text x="30" y="140" class="p">가격·심사·채널·</text><text x="30" y="170" class="p">자산·배당 설정</text>
+    <path d="M225 108H275" class="arrow"/>
+    <rect x="290" width="210" height="215" rx="25" fill="#FFF0E8" class="node" filter="url(#shadow)"/><circle cx="328" cy="40" r="25" fill="#D66A32"/><text x="328" y="50" text-anchor="middle" class="num">2</text><text x="320" y="100" class="h">고객 반응</text><text x="320" y="140" class="p">신규 가입</text><text x="320" y="170" class="p">계약 해지</text>
+    <path d="M515 108H565" class="arrow"/>
+    <rect x="580" width="210" height="215" rx="25" fill="#FFF0E8" class="node" filter="url(#shadow)"/><circle cx="618" cy="40" r="25" fill="#D66A32"/><text x="618" y="50" text-anchor="middle" class="num">3</text><text x="610" y="100" class="h">사고 처리</text><text x="610" y="140" class="p">사망보험금</text><text x="610" y="170" class="p">해지·만기 지급</text>
+    <path d="M805 108H855" class="arrow"/>
+    <rect x="870" width="210" height="215" rx="25" fill="#DDF3EC" class="node" filter="url(#shadow)"/><circle cx="908" cy="40" r="25" fill="#22856A"/><text x="908" y="50" text-anchor="middle" class="num">4</text><text x="900" y="100" class="h">돈 굴리기</text><text x="900" y="140" class="p">예금·채권 이자</text><text x="900" y="170" class="p">주식 손익</text>
+    <path d="M1095 108H1145" class="arrow"/>
+    <rect x="1160" width="210" height="215" rx="25" fill="#DDE9FF" class="node" filter="url(#shadow)"/><circle cx="1198" cy="40" r="25" fill="#3973C6"/><text x="1198" y="50" text-anchor="middle" class="num">5</text><text x="1190" y="100" class="h">월말 결산</text><text x="1190" y="140" class="p">이익·손해율</text><text x="1190" y="170" class="p">자본·계약자 수</text>
+  </g>
+  <path d="M1450 332C1490 332 1515 335 1515 420C1515 520 1410 565 1260 565H240C125 565 80 515 80 440" class="arrow"/>
+  <text x="800" y="625" text-anchor="middle" class="h">6. 결과를 보고 다음 달 전략을 수정합니다</text>
+</svg>
