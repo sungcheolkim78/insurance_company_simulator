@@ -10,6 +10,7 @@ import FinancialStatements from '../components/FinancialStatements.vue'
 import DecisionPanel from '../components/DecisionPanel.vue'
 import TurnControl from '../components/TurnControl.vue'
 import GameSettingsPanel from '../components/GameSettingsPanel.vue'
+import TurnPathTracker from '../components/TurnPathTracker.vue'
 
 const props = defineProps({ id: String })
 const store = useGameStore()
@@ -66,17 +67,23 @@ async function handleEndGame() {
 
 <template>
   <div v-if="store.snapshot" class="mx-auto max-w-6xl space-y-6 p-8">
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-slate-800">턴 {{ store.currentTurn }} / {{ store.gameLengthTurns }}</h1>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div class="w-full sm:max-w-md">
+        <TurnPathTracker
+          :current-turn="store.currentTurn"
+          :game-length-turns="store.gameLengthTurns"
+          :stock-regime="store.snapshot.stock_regime"
+        />
+      </div>
       <div class="flex gap-2">
         <button
-          class="rounded border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          class="rounded-full border-2 border-ink bg-tile px-4 py-2 text-sm font-bold text-ink shadow-[3px_3px_0_rgba(43,42,76,0.28)] active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(43,42,76,0.28)]"
           @click="showSettings = true"
         >
-          설정
+          ⚙ 설정
         </button>
         <button
-          class="rounded border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+          class="rounded-full border-2 border-coral-deep bg-tile px-4 py-2 text-sm font-bold text-coral-deep shadow-[3px_3px_0_rgba(200,73,47,0.35)] disabled:opacity-50 active:translate-y-[2px] active:shadow-[1px_1px_0_rgba(200,73,47,0.35)]"
           :disabled="isBusy"
           @click="handleEndGame"
         >
