@@ -37,7 +37,9 @@ async function fetchGames() {
     const data = await listGames()
     pastGames.value = data
   } catch (err) {
-    listError.value = '게임 목록을 불러오는 데 실패했습니다.'
+    listError.value = err.response?.status === 401
+      ? '세션이 만료되었습니다. 다시 로그인해주세요.'
+      : '게임 목록을 불러오는 데 실패했습니다.'
   } finally {
     isLoadingGames.value = false
   }
@@ -51,7 +53,9 @@ async function handleCreate() {
     const game = await createGame(Number(initialCapital.value), seed, Number(gameLengthTurns.value))
     router.push(`/games/${game.id}`)
   } catch (err) {
-    errorMessage.value = '게임 생성에 실패했습니다.'
+    errorMessage.value = err.response?.status === 401
+      ? '세션이 만료되었습니다. 다시 로그인해주세요.'
+      : '게임 생성에 실패했습니다.'
   } finally {
     isCreating.value = false
   }
