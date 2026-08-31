@@ -1,0 +1,45 @@
+services:
+  # FastAPI backend, built from backend/Dockerfile.
+  # SQLite data is persisted on a disk mounted at /app/data — disks require a
+  # paid instance type (not the free plan), so `plan` is set to `starter`.
+  - type: web
+    name: insurance-backend
+    runtime: docker
+    plan: starter
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PORT
+        value: "8000"
+      # Set this once the frontend's Render URL is known, e.g.
+      # https://insurance-frontend.onrender.com (comma-separate multiple origins).
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+    disk:
+      name: backend-data
+      mountPath: /app/data
+      sizeGB: 1
+
+  # Vue frontend, built as a static site and served by Render's static CDN.
+  - type: web
+    name: insurance-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      # Set this to the backend service's URL, e.g.
+      # https://insurance-backend.onrender.com
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      # SPA fallback so vue-router's history mode works on deep links.
+      - type: rewrite
+        source: /*
+        destination: /index.html
