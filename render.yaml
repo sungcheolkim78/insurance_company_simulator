@@ -16,8 +16,6 @@ services:
         value: "1"
       - key: PORT
         value: "8000"
-      - key: DATABASE_URL
-        sync: false
       # Set this once the frontend's Render URL is known, e.g.
       # https://insurance-frontend.onrender.com (comma-separate multiple origins).
       - key: CORS_ALLOWED_ORIGINS

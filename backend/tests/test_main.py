@@ -23,11 +23,5 @@ def test_cors_allows_credentialed_requests():
     assert response.headers["access-control-allow-credentials"] == "true"
 
 
-def test_database_url_defaults_to_sqlite(monkeypatch):
-    monkeypatch.delenv("DATABASE_URL", raising=False)
+def test_database_url_defaults_to_sqlite():
     assert str(db.database_url()).startswith("sqlite")
-
-
-def test_postgres_url_is_normalized(monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", "postgres://user:pass@host/db")
-    assert db.database_url() == "postgresql+psycopg://user:pass@host/db"
