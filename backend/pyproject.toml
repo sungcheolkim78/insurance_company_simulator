@@ -7,6 +7,9 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "sqlmodel>=0.0.22",
     "numpy>=1.26",
+    "alembic>=1.13",
+    "argon2-cffi>=23.1",
+    "psycopg[binary]>=3.2",
 ]
 
 [project.optional-dependencies]

@@ -10,6 +10,8 @@ services:
       - backend-data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
+      # Optional: set DATABASE_URL for PostgreSQL; SQLite is used by default.
+      - DATABASE_URL=${DATABASE_URL:-}
 
   frontend:
     build:
