@@ -18,7 +18,8 @@ from app.auth import (
     verify_password,
 )
 from app.db import get_session
-from app.models import SessionRow, UserRow
+import app.db as db
+from app.models import LoginAttemptRow, SessionRow, UserRow
 
 
 @pytest.fixture(autouse=True)
@@ -224,3 +225,215 @@ def test_unsafe_request_from_disallowed_origin_is_rejected(client):
 def test_safe_requests_do_not_require_csrf_token(client):
     response = client.get("/health")
     assert response.status_code == 200
+
+
+# --- auth API routes --------------------------------------------------------
+
+
+def _csrf_headers(client) -> dict[str, str]:
+    if CSRF_COOKIE_NAME not in client.cookies:
+        client.get("/health")
+    return {"X-CSRF-Token": client.cookies[CSRF_COOKIE_NAME]}
+
+
+def test_register_creates_user_and_establishes_session(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["email"] == "ceo@example.com"
+    assert isinstance(body["id"], int)
+
+    jar = SimpleCookie()
+    jar.load(response.headers["set-cookie"])
+    assert jar[SESSION_COOKIE_NAME]["httponly"] is True
+    assert jar[SESSION_COOKIE_NAME]["path"] == "/"
+
+    with Session(db.engine) as session:
+        user = session.exec(select(UserRow).where(UserRow.email == "ceo@example.com")).first()
+        sessions = session.exec(select(SessionRow)).all()
+    assert user is not None
+    assert user.password_hash.startswith("$argon2")
+    assert len(sessions) == 1
+
+
+def test_register_rejects_invalid_email(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "not-an-email", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+    assert response.status_code == 422
+
+
+def test_register_rejects_short_password(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "ceo@example.com", "password": "short"},
+        headers=_csrf_headers(client),
+    )
+    assert response.status_code == 422
+
+
+def test_register_rejects_duplicate_email(client):
+    payload = {"email": "ceo@example.com", "password": "long-enough-pass"}
+    first = client.post("/auth/register", json=payload, headers=_csrf_headers(client))
+    assert first.status_code == 201
+
+    second = client.post("/auth/register", json=payload, headers=_csrf_headers(client))
+
+    assert second.status_code == 409
+
+
+def test_register_normalizes_email(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "  CEO@Example.COM ", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+    assert response.status_code == 201
+    assert response.json()["email"] == "ceo@example.com"
+
+    login = client.post(
+        "/auth/login",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+    assert login.status_code == 200
+
+
+def test_login_returns_user_and_establishes_session(client):
+    client.post(
+        "/auth/register",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+    client.post("/auth/logout", headers=_csrf_headers(client))
+
+    response = client.post(
+        "/auth/login",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["email"] == "ceo@example.com"
+    me = client.get("/auth/me")
+    assert me.status_code == 200
+    assert me.json() == response.json()
+
+
+def test_login_wrong_credentials_return_generic_error(client):
+    client.post(
+        "/auth/register",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+
+    wrong_password = client.post(
+        "/auth/login",
+        json={"email": "ceo@example.com", "password": "wrong-password"},
+        headers=_csrf_headers(client),
+    )
+    unknown_email = client.post(
+        "/auth/login",
+        json={"email": "nobody@example.com", "password": "whatever-pass"},
+        headers=_csrf_headers(client),
+    )
+
+    assert wrong_password.status_code == 401
+    assert unknown_email.status_code == 401
+    assert wrong_password.json()["detail"] == unknown_email.json()["detail"]
+
+
+def test_login_rate_limits_after_five_recent_failures(client):
+    client.post(
+        "/auth/register",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+    for _ in range(5):
+        failed = client.post(
+            "/auth/login",
+            json={"email": "ceo@example.com", "password": "wrong-password"},
+            headers=_csrf_headers(client),
+        )
+        assert failed.status_code == 401
+
+    blocked = client.post(
+        "/auth/login",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+
+    assert blocked.status_code == 429
+
+
+def test_me_requires_authentication(client):
+    response = client.get("/auth/me")
+    assert response.status_code == 401
+
+
+def test_logout_invalidates_session_and_clears_cookies(client):
+    client.post(
+        "/auth/register",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+    assert client.get("/auth/me").status_code == 200
+
+    response = client.post("/auth/logout", headers=_csrf_headers(client))
+
+    assert response.status_code == 200
+    assert response.json() == {"logged_out": True}
+    assert client.get("/auth/me").status_code == 401
+    jar = SimpleCookie()
+    jar.load(response.headers["set-cookie"])
+    assert int(jar[SESSION_COOKIE_NAME]["max-age"]) == 0
+
+
+def test_failed_logins_are_recorded_per_email_and_ip(client):
+    client.post(
+        "/auth/register",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+    client.post(
+        "/auth/login",
+        json={"email": "ceo@example.com", "password": "wrong-password"},
+        headers=_csrf_headers(client),
+    )
+
+    with Session(db.engine) as session:
+        attempts = session.exec(select(LoginAttemptRow)).all()
+
+    assert len(attempts) == 1
+    assert attempts[0].normalized_email == "ceo@example.com"
+    assert attempts[0].client_ip
+
+
+def test_successful_login_clears_old_failures(client):
+    client.post(
+        "/auth/register",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+    client.post(
+        "/auth/login",
+        json={"email": "ceo@example.com", "password": "wrong-password"},
+        headers=_csrf_headers(client),
+    )
+    client.post(
+        "/auth/login",
+        json={"email": "ceo@example.com", "password": "long-enough-pass"},
+        headers=_csrf_headers(client),
+    )
+
+    with Session(db.engine) as session:
+        attempts = session.exec(select(LoginAttemptRow)).all()
+
+    assert attempts == []

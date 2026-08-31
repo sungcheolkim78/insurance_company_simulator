@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 from pydantic import BaseModel, field_validator
@@ -5,6 +6,47 @@ from pydantic import BaseModel, field_validator
 PRODUCT_KEYS = {"whole_life", "savings"}
 CHANNEL_KEYS = {"captive", "ga"}
 ASSET_KEYS = {"deposit", "bond", "stock"}
+
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _normalize_email(value: str) -> str:
+    normalized = value.strip().lower()
+    if not _EMAIL_PATTERN.match(normalized):
+        raise ValueError("a valid email address is required")
+    return normalized
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def _email_valid(cls, value: str) -> str:
+        return _normalize_email(value)
+
+    @field_validator("password")
+    @classmethod
+    def _password_min_length(cls, value: str) -> str:
+        if len(value) < 8:
+            raise ValueError("password must be at least 8 characters")
+        return value
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def _email_valid(cls, value: str) -> str:
+        return _normalize_email(value)
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
 
 
 class CreateGameRequest(BaseModel):

@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .api.auth import router as auth_router
 from .api.games import router as games_router
 from .auth import UNSAFE_METHODS, issue_csrf_cookie, require_csrf
 from .db import init_db
@@ -39,6 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(games_router)
 
 
