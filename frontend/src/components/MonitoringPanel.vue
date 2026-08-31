@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { PhChartPieSlice, PhHandshake, PhPiggyBank, PhShieldWarning, PhTrendUp, PhVault } from '@phosphor-icons/vue'
+import MetricLabel from './MetricLabel.vue'
 
 const props = defineProps({
   snapshot: { type: Object, required: true },
@@ -105,24 +106,24 @@ function toneHigherIsBetter(value, threshold) {
       <div class="p-4">
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div class="text-ink-soft">시장금리 (목표 3.0%)</div>
+            <div class="text-ink-soft"><MetricLabel metric="interest_rate" label="시장금리 (목표 3.0%)" /></div>
             <div class="tabular-nums font-bold">{{ formatPct(snapshot.interest_rate) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">주가 국면</div>
+            <div class="text-ink-soft"><MetricLabel metric="stock_regime" label="주가 국면" /></div>
             <div class="font-bold">{{ REGIME_LABELS[snapshot.stock_regime] ?? snapshot.stock_regime }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">주식 실현수익률(월)</div>
+            <div class="text-ink-soft"><MetricLabel metric="stock_return" label="주식 실현수익률(월)" /></div>
             <div class="tabular-nums font-bold">{{ formatPct(snapshot.stock_return_realized) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">포트폴리오 운용수익률(월)</div>
+            <div class="text-ink-soft"><MetricLabel metric="portfolio_return" label="포트폴리오 운용수익률(월)" /></div>
             <div class="tabular-nums font-bold">{{ formatPct(portfolioReturnMonthly) }}</div>
           </div>
         </div>
         <div class="mt-3 text-sm">
-          <div class="text-ink-soft">자산군별 비중 (예금 / 채권 / 주식)</div>
+          <div class="text-ink-soft"><MetricLabel metric="asset_weights" label="자산군별 비중 (예금 / 채권 / 주식)" /></div>
           <div class="tabular-nums font-bold">
             {{ formatPct(assetWeights.deposit, 1) }} / {{ formatPct(assetWeights.bond, 1) }} / {{ formatPct(assetWeights.stock, 1) }}
           </div>
@@ -138,41 +139,41 @@ function toneHigherIsBetter(value, threshold) {
       <div class="p-4">
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div class="text-ink-soft">총 보유계약수</div>
+            <div class="text-ink-soft"><MetricLabel metric="total_in_force" label="총 보유계약수" /></div>
             <div class="tabular-nums font-bold">{{ Math.round(snapshot.total_in_force).toLocaleString('ko-KR') }}건</div>
           </div>
           <div>
-            <div class="text-ink-soft">이번 턴 신계약</div>
+            <div class="text-ink-soft"><MetricLabel metric="new_policies" label="이번 턴 신계약" /></div>
             <div class="tabular-nums font-bold">{{ newPoliciesTotal.toLocaleString('ko-KR') }}건</div>
           </div>
           <div>
-            <div class="text-ink-soft">신계약 (종신/저축)</div>
+            <div class="text-ink-soft"><MetricLabel metric="new_policies_product" label="신계약 (종신/저축)" /></div>
             <div class="tabular-nums font-bold">
               {{ snapshot.new_policies_by_product.whole_life }} / {{ snapshot.new_policies_by_product.savings }}
             </div>
           </div>
           <div>
-            <div class="text-ink-soft">신계약 (전속/GA)</div>
+            <div class="text-ink-soft"><MetricLabel metric="new_policies_channel" label="신계약 (전속/GA)" /></div>
             <div class="tabular-nums font-bold">
               {{ snapshot.new_policies_by_channel.captive }} / {{ snapshot.new_policies_by_channel.ga }}
             </div>
           </div>
           <div>
-            <div class="text-ink-soft">초회 보험료</div>
+            <div class="text-ink-soft"><MetricLabel metric="new_business_premium" label="초회 보험료" /></div>
             <div class="tabular-nums font-bold">{{ formatWon(newBusinessPremiumTotal) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">계속 보험료</div>
+            <div class="text-ink-soft"><MetricLabel metric="renewal_premium" label="계속 보험료" /></div>
             <div class="tabular-nums font-bold">{{ formatWon(renewalPremium) }}</div>
           </div>
         </div>
         <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div class="text-ink-soft">채널효율성 (전속)</div>
+            <div class="text-ink-soft"><MetricLabel metric="channel_efficiency" label="채널효율성 (전속)" /></div>
             <div class="tabular-nums font-bold">{{ channelEfficiency ? formatPct(channelEfficiency.captive, 0) : '—' }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">채널효율성 (GA)</div>
+            <div class="text-ink-soft"><MetricLabel metric="channel_efficiency" label="채널효율성 (GA)" /></div>
             <div class="tabular-nums font-bold">{{ channelEfficiency ? formatPct(channelEfficiency.ga, 0) : '—' }}</div>
           </div>
         </div>
@@ -187,15 +188,15 @@ function toneHigherIsBetter(value, threshold) {
       <div class="p-4">
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div class="text-ink-soft">위험손해율 (종신)</div>
+            <div class="text-ink-soft"><MetricLabel metric="loss_ratio" label="위험손해율 (종신)" /></div>
             <div class="tabular-nums font-bold" :class="toneLowerIsBetter(lossRatio, 0.5)">{{ formatPct(lossRatio, 1) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">해지율 (월 / 연환산)</div>
+            <div class="text-ink-soft"><MetricLabel metric="lapse_ratio" label="해지율 (월 / 연환산)" /></div>
             <div class="tabular-nums font-bold">{{ formatPct(lapseRatioMonthly, 2) }} / {{ formatPct(lapseRatioAnnual, 1) }}</div>
           </div>
           <div class="col-span-2">
-            <div class="text-ink-soft">해지·만기 유출액 비율</div>
+            <div class="text-ink-soft"><MetricLabel metric="surrender_ratio" label="해지·만기 유출액 비율" /></div>
             <div class="tabular-nums font-bold" :class="toneLowerIsBetter(surrenderRatio, 0.3)">{{ formatPct(surrenderRatio, 1) }}</div>
           </div>
         </div>
@@ -210,15 +211,15 @@ function toneHigherIsBetter(value, threshold) {
       <div class="p-4">
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div class="text-ink-soft">사업비율</div>
+            <div class="text-ink-soft"><MetricLabel metric="expense_ratio" label="사업비율" /></div>
             <div class="tabular-nums font-bold" :class="toneLowerIsBetter(expenseRatio, 0.3)">{{ formatPct(expenseRatio, 1) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">합산비율</div>
+            <div class="text-ink-soft"><MetricLabel metric="combined_ratio" label="합산비율" /></div>
             <div class="tabular-nums font-bold" :class="toneLowerIsBetter(combinedRatio, 1.0)">{{ formatPct(combinedRatio, 1) }}</div>
           </div>
           <div class="col-span-2">
-            <div class="text-ink-soft">ROE (연환산)</div>
+            <div class="text-ink-soft"><MetricLabel metric="roe" label="ROE (연환산)" /></div>
             <div class="tabular-nums font-bold" :class="toneHigherIsBetter(roeAnnual, 0)">{{ formatPct(roeAnnual, 1) }}</div>
           </div>
         </div>
@@ -233,11 +234,11 @@ function toneHigherIsBetter(value, threshold) {
       <div class="p-4">
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div class="text-ink-soft">자본총계</div>
+            <div class="text-ink-soft"><MetricLabel metric="equity" label="자본총계" /></div>
             <div class="tabular-nums font-bold">{{ formatWon(snapshot.equity) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">자본완충비율 (자본/준비금)</div>
+            <div class="text-ink-soft"><MetricLabel metric="solvency_proxy" label="자본완충비율 (자본/준비금)" /></div>
             <div class="tabular-nums font-bold" :class="toneHigherIsBetter(solvencyProxy, 0.9)">
               {{ formatPct(solvencyProxy, 1) }}
             </div>
@@ -254,23 +255,23 @@ function toneHigherIsBetter(value, threshold) {
       <div class="p-4">
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div class="text-ink-soft">총 CSM 잔액</div>
+            <div class="text-ink-soft"><MetricLabel metric="total_csm" label="총 CSM 잔액" /></div>
             <div class="tabular-nums font-bold">{{ formatWon(snapshot.total_csm) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">이번 턴 CSM 환입액</div>
+            <div class="text-ink-soft"><MetricLabel metric="csm_release" label="이번 턴 CSM 환입액" /></div>
             <div class="tabular-nums font-bold">{{ formatWon(snapshot.csm_release) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">신규 CSM 설정액</div>
+            <div class="text-ink-soft"><MetricLabel metric="csm_new_business" label="신규 CSM 설정액" /></div>
             <div class="tabular-nums font-bold">{{ formatWon(snapshot.csm_new_business) }}</div>
           </div>
           <div>
-            <div class="text-ink-soft">CSM / 자본총계</div>
+            <div class="text-ink-soft"><MetricLabel metric="csm_to_equity" label="CSM / 자본총계" /></div>
             <div class="tabular-nums font-bold">{{ formatPct(csmToEquityRatio, 1) }}</div>
           </div>
           <div class="col-span-2">
-            <div class="text-ink-soft">손실부담계약손실 (이번 턴)</div>
+            <div class="text-ink-soft"><MetricLabel metric="onerous_loss" label="손실부담계약손실 (이번 턴)" /></div>
             <div class="tabular-nums font-bold" :class="snapshot.onerous_loss > 0 ? 'text-coral-deep' : 'text-ink'">
               {{ formatWon(snapshot.onerous_loss) }}
             </div>
