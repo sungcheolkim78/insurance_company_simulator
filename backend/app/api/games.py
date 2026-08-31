@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from .. import repository
+from ..auth import get_current_user
 from ..db import get_session
 from ..engine.config import DEFAULT_CHANNEL_CONFIGS, DEFAULT_PRODUCT_CONFIGS
 from ..engine.types import ChannelCode, Decision, ProductCode
-from ..models import CohortRow, DecisionRow, FinancialSnapshotRow, GameRow, MarketStateRow
+from ..models import CohortRow, DecisionRow, FinancialSnapshotRow, GameRow, MarketStateRow, UserRow
 from ..schemas import ConfigResponse, CreateGameRequest, GameStateResponse, GameSummary, SnapshotResponse, TurnRequest
 
 router = APIRouter(prefix="/games", tags=["games"])
@@ -35,15 +36,23 @@ def _config_dict(cfg) -> dict:
 
 
 @router.post("", response_model=GameStateResponse)
-def create_game(payload: CreateGameRequest, session: Session = Depends(get_session)) -> GameStateResponse:
+def create_game(
+    payload: CreateGameRequest,
+    session: Session = Depends(get_session),
+    current_user: UserRow = Depends(get_current_user),
+) -> GameStateResponse:
     seed = payload.rng_seed if payload.rng_seed is not None else random.randint(0, 2**31 - 1)
-    game = repository.create_game(session, payload.initial_capital, seed, payload.game_length_turns)
+    game = repository.create_game(session, current_user.id, payload.initial_capital, seed, payload.game_length_turns)
     return _game_state(session, game)
 
 
 @router.get("", response_model=list[GameSummary])
-def list_games(session: Session = Depends(get_session)) -> list[GameSummary]:
-    games = session.exec(select(GameRow).order_by(GameRow.id.desc())).all()
+def list_games(
+    session: Session = Depends(get_session), current_user: UserRow = Depends(get_current_user)
+) -> list[GameSummary]:
+    games = session.exec(
+        select(GameRow).where(GameRow.user_id == current_user.id).order_by(GameRow.id.desc())
+    ).all()
     results = []
     for g in games:
         snapshot = repository.latest_snapshot(session, g.id)
@@ -61,16 +70,24 @@ def list_games(session: Session = Depends(get_session)) -> list[GameSummary]:
 
 
 @router.get("/{game_id}", response_model=GameStateResponse)
-def get_game(game_id: int, session: Session = Depends(get_session)) -> GameStateResponse:
-    game = session.get(GameRow, game_id)
+def get_game(
+    game_id: int,
+    session: Session = Depends(get_session),
+    current_user: UserRow = Depends(get_current_user),
+) -> GameStateResponse:
+    game = repository.get_owned_game(session, game_id, current_user.id)
     if game is None:
         raise HTTPException(status_code=404, detail="game not found")
     return _game_state(session, game)
 
 
 @router.get("/{game_id}/config", response_model=ConfigResponse)
-def get_config(game_id: int, session: Session = Depends(get_session)) -> ConfigResponse:
-    game = session.get(GameRow, game_id)
+def get_config(
+    game_id: int,
+    session: Session = Depends(get_session),
+    current_user: UserRow = Depends(get_current_user),
+) -> ConfigResponse:
+    game = repository.get_owned_game(session, game_id, current_user.id)
     if game is None:
         raise HTTPException(status_code=404, detail="game not found")
     return ConfigResponse(
@@ -91,8 +108,12 @@ def _decision_from_request(payload: TurnRequest) -> Decision:
 
 
 @router.get("/{game_id}/history", response_model=list[SnapshotResponse])
-def get_history(game_id: int, session: Session = Depends(get_session)) -> list[SnapshotResponse]:
-    game = session.get(GameRow, game_id)
+def get_history(
+    game_id: int,
+    session: Session = Depends(get_session),
+    current_user: UserRow = Depends(get_current_user),
+) -> list[SnapshotResponse]:
+    game = repository.get_owned_game(session, game_id, current_user.id)
     if game is None:
         raise HTTPException(status_code=404, detail="game not found")
     rows = session.exec(
@@ -102,8 +123,13 @@ def get_history(game_id: int, session: Session = Depends(get_session)) -> list[S
 
 
 @router.post("/{game_id}/turn", response_model=GameStateResponse)
-def submit_turn(game_id: int, payload: TurnRequest, session: Session = Depends(get_session)) -> GameStateResponse:
-    game = session.get(GameRow, game_id)
+def submit_turn(
+    game_id: int,
+    payload: TurnRequest,
+    session: Session = Depends(get_session),
+    current_user: UserRow = Depends(get_current_user),
+) -> GameStateResponse:
+    game = repository.get_owned_game(session, game_id, current_user.id)
     if game is None:
         raise HTTPException(status_code=404, detail="game not found")
     try:
@@ -115,8 +141,12 @@ def submit_turn(game_id: int, payload: TurnRequest, session: Session = Depends(g
 
 
 @router.delete("/{game_id}")
-def delete_game(game_id: int, session: Session = Depends(get_session)) -> dict[str, bool]:
-    game = session.get(GameRow, game_id)
+def delete_game(
+    game_id: int,
+    session: Session = Depends(get_session),
+    current_user: UserRow = Depends(get_current_user),
+) -> dict[str, bool]:
+    game = repository.get_owned_game(session, game_id, current_user.id)
     if game is None:
         raise HTTPException(status_code=404, detail="game not found")
     for model in (CohortRow, MarketStateRow, DecisionRow, FinancialSnapshotRow):

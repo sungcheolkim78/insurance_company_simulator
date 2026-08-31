@@ -15,6 +15,14 @@ def make_session() -> Session:
     return Session(engine)
 
 
+def make_user(session: Session) -> UserRow:
+    user = UserRow(email="player@example.com", password_hash="argon2-hash")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
 def base_decision() -> Decision:
     return Decision(
         pricing_multiplier={ProductCode.WHOLE_LIFE: 1.0, ProductCode.SAVINGS: 1.0},
@@ -28,7 +36,8 @@ def base_decision() -> Decision:
 
 def test_create_game_seeds_initial_snapshot():
     session = make_session()
-    game = create_game(session, initial_capital=10_000_000_000.0, rng_seed=42)
+    user = make_user(session)
+    game = create_game(session, user.id, initial_capital=10_000_000_000.0, rng_seed=42)
 
     assert game.id is not None
     assert game.current_turn == 0
@@ -78,7 +87,8 @@ def test_auth_rows_and_owned_games_have_required_constraints():
 
 def test_apply_turn_persists_snapshot_and_advances_game():
     session = make_session()
-    game = create_game(session, initial_capital=10_000_000_000.0, rng_seed=42)
+    user = make_user(session)
+    game = create_game(session, user.id, initial_capital=10_000_000_000.0, rng_seed=42)
 
     snapshot = apply_turn(session, game.id, base_decision())
 
@@ -105,7 +115,8 @@ def test_apply_turn_second_turn_releases_csm_from_surviving_cohorts():
     cohorts (which would mask a silently-dropped field on the surviving ones).
     """
     session = make_session()
-    game = create_game(session, initial_capital=10_000_000_000.0, rng_seed=42)
+    user = make_user(session)
+    game = create_game(session, user.id, initial_capital=10_000_000_000.0, rng_seed=42)
 
     apply_turn(session, game.id, base_decision())
     turn_2_decision = base_decision()
@@ -119,7 +130,8 @@ def test_apply_turn_second_turn_releases_csm_from_surviving_cohorts():
 
 def test_apply_turn_rejects_finished_game():
     session = make_session()
-    game = create_game(session, initial_capital=10_000_000_000.0, rng_seed=42)
+    user = make_user(session)
+    game = create_game(session, user.id, initial_capital=10_000_000_000.0, rng_seed=42)
     game.status = "bankrupt"
     session.add(game)
     session.commit()

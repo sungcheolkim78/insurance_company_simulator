@@ -16,8 +16,9 @@ from .engine.types import (
 from .models import CohortRow, DecisionRow, FinancialSnapshotRow, GameRow, MarketStateRow
 
 
-def create_game(session: Session, initial_capital: float, rng_seed: int, game_length_turns: int = 120) -> GameRow:
+def create_game(session: Session, user_id: int, initial_capital: float, rng_seed: int, game_length_turns: int = 120) -> GameRow:
     game = GameRow(
+        user_id=user_id,
         rng_seed=rng_seed,
         initial_capital=initial_capital,
         current_turn=0,
@@ -77,6 +78,13 @@ def create_game(session: Session, initial_capital: float, rng_seed: int, game_le
     )
     session.commit()
     return game
+
+
+def get_owned_game(session: Session, game_id: int, user_id: int) -> GameRow | None:
+    """Return the game only when it exists and belongs to the given user."""
+    return session.exec(
+        select(GameRow).where(GameRow.id == game_id).where(GameRow.user_id == user_id)
+    ).first()
 
 
 def latest_market_state(session: Session, game_id: int) -> MarketState:

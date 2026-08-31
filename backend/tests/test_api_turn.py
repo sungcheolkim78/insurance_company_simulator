@@ -1,5 +1,7 @@
 import pytest
 
+from tests.conftest import register_user
+
 
 def turn_payload():
     return {
@@ -13,6 +15,7 @@ def turn_payload():
 
 
 def test_submit_turn_advances_game_and_matches_engine_reference(client):
+    register_user(client, "alice@example.com")
     create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
     game_id = create.json()["id"]
 
@@ -35,11 +38,13 @@ def test_submit_turn_advances_game_and_matches_engine_reference(client):
 
 
 def test_submit_turn_on_missing_game_returns_404(client):
+    register_user(client, "alice@example.com")
     response = client.post("/games/999/turn", json=turn_payload())
     assert response.status_code == 404
 
 
 def test_delete_game_removes_it(client):
+    register_user(client, "alice@example.com")
     created = client.post("/games", json={})
     game_id = created.json()["id"]
 
@@ -49,6 +54,7 @@ def test_delete_game_removes_it(client):
 
 
 def test_submit_turn_rejects_zero_pricing_multiplier(client):
+    register_user(client, "alice@example.com")
     create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
     game_id = create.json()["id"]
     payload = turn_payload()
@@ -59,6 +65,7 @@ def test_submit_turn_rejects_zero_pricing_multiplier(client):
 
 
 def test_submit_turn_rejects_negative_dividend(client):
+    register_user(client, "alice@example.com")
     create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
     game_id = create.json()["id"]
     payload = turn_payload()
@@ -69,6 +76,7 @@ def test_submit_turn_rejects_negative_dividend(client):
 
 
 def test_submit_turn_rejects_asset_allocation_not_summing_to_one(client):
+    register_user(client, "alice@example.com")
     create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
     game_id = create.json()["id"]
     payload = turn_payload()
@@ -79,6 +87,7 @@ def test_submit_turn_rejects_asset_allocation_not_summing_to_one(client):
 
 
 def test_submit_turn_rejects_commission_rate_above_upper_bound(client):
+    register_user(client, "alice@example.com")
     create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
     game_id = create.json()["id"]
     payload = turn_payload()
@@ -89,6 +98,7 @@ def test_submit_turn_rejects_commission_rate_above_upper_bound(client):
 
 
 def test_submit_turn_rejects_missing_product_key(client):
+    register_user(client, "alice@example.com")
     create = client.post("/games", json={"initial_capital": 10_000_000_000, "rng_seed": 42})
     game_id = create.json()["id"]
     payload = turn_payload()
