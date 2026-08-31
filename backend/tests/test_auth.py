@@ -186,44 +186,55 @@ def test_get_current_user_rejects_inactive_user(auth_client):
 
 
 # --- CSRF / origin protection (wired into the real app) ---------------------
+#
+# These tests intentionally use a raw TestClient (no automatic CSRF header
+# injection) to exercise the protection layer itself.
 
 
-def test_unsafe_request_without_csrf_token_is_rejected(client):
-    client.get("/health")
-    response = client.post("/health")
+@pytest.fixture()
+def raw_client():
+    from app.main import app as main_app
+
+    with TestClient(main_app) as test_client:
+        yield test_client
+
+
+def test_unsafe_request_without_csrf_token_is_rejected(raw_client):
+    raw_client.get("/health")
+    response = raw_client.post("/health")
     assert response.status_code == 403
 
 
-def test_unsafe_request_without_csrf_cookie_is_rejected(client):
-    response = client.post("/health", headers={"X-CSRF-Token": "anything"})
+def test_unsafe_request_without_csrf_cookie_is_rejected(raw_client):
+    response = raw_client.post("/health", headers={"X-CSRF-Token": "anything"})
     assert response.status_code == 403
 
 
-def test_unsafe_request_with_matching_csrf_token_passes_protection(client):
-    client.get("/health")
-    token = client.cookies[CSRF_COOKIE_NAME]
-    response = client.post("/health", headers={"X-CSRF-Token": token})
+def test_unsafe_request_with_matching_csrf_token_passes_protection(raw_client):
+    raw_client.get("/health")
+    token = raw_client.cookies[CSRF_COOKIE_NAME]
+    response = raw_client.post("/health", headers={"X-CSRF-Token": token})
     assert response.status_code == 405
 
 
-def test_unsafe_request_with_mismatched_csrf_token_is_rejected(client):
-    client.get("/health")
-    response = client.post("/health", headers={"X-CSRF-Token": "mismatched-value"})
+def test_unsafe_request_with_mismatched_csrf_token_is_rejected(raw_client):
+    raw_client.get("/health")
+    response = raw_client.post("/health", headers={"X-CSRF-Token": "mismatched-value"})
     assert response.status_code == 403
 
 
-def test_unsafe_request_from_disallowed_origin_is_rejected(client):
-    client.get("/health")
-    token = client.cookies[CSRF_COOKIE_NAME]
-    response = client.post(
+def test_unsafe_request_from_disallowed_origin_is_rejected(raw_client):
+    raw_client.get("/health")
+    token = raw_client.cookies[CSRF_COOKIE_NAME]
+    response = raw_client.post(
         "/health",
         headers={"X-CSRF-Token": token, "Origin": "https://evil.example"},
     )
     assert response.status_code == 403
 
 
-def test_safe_requests_do_not_require_csrf_token(client):
-    response = client.get("/health")
+def test_safe_requests_do_not_require_csrf_token(raw_client):
+    response = raw_client.get("/health")
     assert response.status_code == 200
 
 
