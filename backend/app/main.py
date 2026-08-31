@@ -1,9 +1,11 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .api.games import router as games_router
+from .auth import UNSAFE_METHODS, issue_csrf_cookie, require_csrf
 from .db import init_db
 
 app = FastAPI(title="Insurance Company Simulator")
@@ -14,6 +16,20 @@ allowed_origins = [
     for origin in os.environ.get("CORS_ALLOWED_ORIGINS", _default_origins).split(",")
     if origin.strip()
 ]
+
+
+@app.middleware("http")
+async def csrf_protection(request, call_next):
+    if request.method in UNSAFE_METHODS:
+        try:
+            require_csrf(request)
+        except HTTPException as exc:
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    response = await call_next(request)
+    if request.method == "GET":
+        issue_csrf_cookie(request, response)
+    return response
+
 
 app.add_middleware(
     CORSMiddleware,
