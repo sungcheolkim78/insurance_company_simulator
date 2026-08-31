@@ -1,5 +1,6 @@
 <script setup>
 import { reactive } from 'vue'
+import MetricLabel from './MetricLabel.vue'
 
 const emit = defineEmits(['submit'])
 
@@ -12,6 +13,16 @@ const form = reactive({
   dividend_payout: 0,
 })
 
+const PRODUCT_INFO = {
+  whole_life: { label: '종신보험', metric: 'product_whole_life' },
+  savings: { label: '저축성보험', metric: 'product_savings' },
+}
+
+const CHANNEL_INFO = {
+  captive: { label: '전속채널', metric: 'channel_captive' },
+  ga: { label: 'GA채널', metric: 'channel_ga' },
+}
+
 function handleSubmit() {
   emit('submit', JSON.parse(JSON.stringify(form)))
 }
@@ -22,12 +33,16 @@ function handleSubmit() {
     <div>
       <h3 class="mb-2 font-display text-ink">상품 가격 / 언더라이팅</h3>
       <div v-for="product in ['whole_life', 'savings']" :key="product" class="mb-2 grid grid-cols-3 items-center gap-2">
-        <span class="text-sm">{{ product }}</span>
-        <label class="text-xs">가격배수
-          <input v-model.number="form.pricing_multiplier[product]" type="number" step="0.05" class="w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
+        <span class="text-sm">
+          <MetricLabel :metric="PRODUCT_INFO[product].metric" :label="PRODUCT_INFO[product].label" />
+        </span>
+        <label class="text-xs">
+          <MetricLabel metric="pricing_multiplier" label="가격배수" />
+          <input v-model.number="form.pricing_multiplier[product]" type="number" step="0.05" class="mt-0.5 w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
         </label>
-        <label class="text-xs">엄격도
-          <input v-model.number="form.underwriting_strictness[product]" type="number" step="0.05" min="0" max="1" class="w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
+        <label class="text-xs">
+          <MetricLabel metric="underwriting_strictness" label="엄격도" />
+          <input v-model.number="form.underwriting_strictness[product]" type="number" step="0.05" min="0" max="1" class="mt-0.5 w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
         </label>
       </div>
       <p class="text-xs text-ink-soft">
@@ -37,12 +52,16 @@ function handleSubmit() {
     <div>
       <h3 class="mb-2 font-display text-ink">채널</h3>
       <div v-for="channel in ['captive', 'ga']" :key="channel" class="mb-2 grid grid-cols-3 items-center gap-2">
-        <span class="text-sm">{{ channel }}</span>
-        <label class="text-xs">수수료율
-          <input v-model.number="form.commission_rate[channel]" type="number" step="0.01" class="w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
+        <span class="text-sm">
+          <MetricLabel :metric="CHANNEL_INFO[channel].metric" :label="CHANNEL_INFO[channel].label" />
+        </span>
+        <label class="text-xs">
+          <MetricLabel metric="commission_rate" label="수수료율" />
+          <input v-model.number="form.commission_rate[channel]" type="number" step="0.01" class="mt-0.5 w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
         </label>
-        <label class="text-xs">모집비
-          <input v-model.number="form.marketing_spend[channel]" type="number" step="1000000" class="w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
+        <label class="text-xs">
+          <MetricLabel metric="marketing_spend" label="모집비" />
+          <input v-model.number="form.marketing_spend[channel]" type="number" step="1000000" class="mt-0.5 w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
         </label>
       </div>
       <p class="text-xs text-ink-soft">
@@ -50,21 +69,33 @@ function handleSubmit() {
       </p>
     </div>
     <div>
-      <h3 class="mb-2 font-display text-ink">자산배분 (합 1.0)</h3>
+      <h3 class="mb-2 font-display text-ink">
+        <MetricLabel metric="asset_allocation" label="자산배분 (합 1.0)" />
+      </h3>
       <div class="grid grid-cols-3 gap-2">
-        <label class="text-xs">예금 <input v-model.number="form.asset_allocation.deposit" type="number" step="0.05" class="w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" /></label>
-        <label class="text-xs">채권 <input v-model.number="form.asset_allocation.bond" type="number" step="0.05" class="w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" /></label>
-        <label class="text-xs">주식 <input v-model.number="form.asset_allocation.stock" type="number" step="0.05" class="w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" /></label>
+        <label class="text-xs">
+          <MetricLabel metric="deposit" label="예금" />
+          <input v-model.number="form.asset_allocation.deposit" type="number" step="0.05" class="mt-0.5 w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
+        </label>
+        <label class="text-xs">
+          <MetricLabel metric="bond" label="채권" />
+          <input v-model.number="form.asset_allocation.bond" type="number" step="0.05" class="mt-0.5 w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
+        </label>
+        <label class="text-xs">
+          <MetricLabel metric="stock" label="주식" />
+          <input v-model.number="form.asset_allocation.stock" type="number" step="0.05" class="mt-0.5 w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
+        </label>
       </div>
       <p class="text-xs text-ink-soft">
         주식↑: 호황기 초과수익 기대, 위기 국면 시 대규모 손실 위험. 채권·예금↑: 안정적 이자수익, 기회비용 발생 가능.
       </p>
     </div>
     <div>
-      <label class="block text-sm">배당 지급액
-        <input v-model.number="form.dividend_payout" type="number" step="1000000" class="w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
+      <label class="block text-sm">
+        <MetricLabel metric="dividend_payout" label="배당 지급액" />
+        <input v-model.number="form.dividend_payout" type="number" step="1000000" class="mt-1 w-full rounded-[10px] border-2 border-board-cream-deep bg-board-cream px-2 py-1" />
       </label>
-      <p class="text-xs text-ink-soft">배당↑: 주주환원 및 ROE 제고, 자본총계(파산 위험 완충력) 감소.</p>
+      <p class="mt-1 text-xs text-ink-soft">배당↑: 주주환원 및 ROE 제고, 자본총계(파산 위험 완충력) 감소.</p>
     </div>
     <button
       class="w-full rounded-full bg-coral py-3 font-display text-lg text-white shadow-[0_4px_0_var(--color-coral-deep)] active:translate-y-[3px] active:shadow-[0_1px_0_var(--color-coral-deep)]"

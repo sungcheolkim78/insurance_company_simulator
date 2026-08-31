@@ -1,6 +1,5 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
-import { PhQuestion } from '@phosphor-icons/vue'
 import { METRIC_DESCRIPTIONS } from '../utils/metricDescriptions'
 
 const props = defineProps({
@@ -42,7 +41,7 @@ onBeforeUnmount(hide)
 <template>
   <span
     ref="trigger"
-    class="inline-flex cursor-help items-center gap-1 border-b border-dotted border-current"
+    class="inline-block cursor-help border-b border-dotted border-current"
     tabindex="0"
     :aria-describedby="visible ? tooltipId : undefined"
     @mouseenter="show"
@@ -52,7 +51,6 @@ onBeforeUnmount(hide)
     @keydown.esc="hide"
   >
     <slot>{{ label }}</slot>
-    <PhQuestion :size="13" weight="bold" aria-hidden="true" />
   </span>
   <Teleport to="body">
     <Transition name="metric-tooltip">
