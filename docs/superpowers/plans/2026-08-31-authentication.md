@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add email/password accounts with PostgreSQL-backed server sessions, protect all game data by ownership, and support login persistence on the Render deployment.
+**Goal:** Add email/password accounts with SQLite-backed server sessions, protect all game data by ownership, and support login persistence on the Render deployment.
 
-**Architecture:** FastAPI creates and validates opaque session tokens stored as SHA-256 hashes in PostgreSQL; the browser receives only an HttpOnly Secure cookie. A `get_current_user` dependency authenticates requests, and every game query includes the authenticated user's ID. Vue keeps authentication state in a Pinia store, restores it through `/auth/me`, and guards game routes.
+**Architecture:** FastAPI creates and validates opaque session tokens stored as SHA-256 hashes in SQLite (on Render's existing mounted persistent disk); the browser receives only an HttpOnly Secure cookie. A `get_current_user` dependency authenticates requests, and every game query includes the authenticated user's ID. Vue keeps authentication state in a Pinia store, restores it through `/auth/me`, and guards game routes.
 
-**Tech Stack:** Python 3.11+, FastAPI, SQLModel, PostgreSQL via `psycopg[binary]`, Alembic, Argon2 via `argon2-cffi`, Vue 3, Pinia, Vue Router, Axios, pytest, Vitest.
+**Database decision:** PostgreSQL was considered but rejected — the Render deployment is a single instance with a persistent disk already mounted at `/app/data`, so PostgreSQL's usual justifications (multi-instance consistency, surviving redeploys) don't apply here, while it would add a separate DB service, driver, and connection-string handling to both local dev and production. SQLite stays; Alembic is introduced instead so schema changes no longer require wiping the database now that real user data exists. See `docs/superpowers/specs/2026-08-31-authentication-design.md` section 1 for the full rationale.
+
+**Tech Stack:** Python 3.11+, FastAPI, SQLModel, SQLite, Alembic (SQLite batch mode), Argon2 via `argon2-cffi`, Vue 3, Pinia, Vue Router, Axios, pytest, Vitest.
 
 **Spec:** `docs/superpowers/specs/2026-08-31-authentication-design.md`
 
@@ -15,7 +17,7 @@
 - `backend/app/engine/` remains pure Python and does not import FastAPI, SQLModel, database sessions, or HTTP clients.
 - Passwords use Argon2id; plaintext passwords and raw session tokens are never logged or persisted.
 - Session cookie name is `insurance_session`; production attributes are `HttpOnly`, `Secure`, `SameSite=None`, and `Path=/`.
-- Render production uses PostgreSQL through `DATABASE_URL`; local development may fall back to SQLite.
+- Render production and local development both use SQLite through `app/db.py`; Alembic manages schema migrations for both.
 - CORS uses exact configured origins and `allow_credentials=True`; wildcard origins are forbidden.
 - Unauthenticated game requests return `401`; authenticated requests for another user's game return `404`.
 - Existing simulation behavior and engine tests must remain unchanged.
@@ -30,10 +32,10 @@
 - Create `backend/tests/test_game_ownership.py`: cross-user game isolation tests.
 - Create `frontend/src/stores/authStore.js`: authentication state and actions.
 - Create `frontend/src/views/LoginView.vue` and `frontend/src/views/RegisterView.vue`: auth forms.
-- Modify `backend/pyproject.toml`: PostgreSQL, Argon2, and Alembic dependencies.
+- Modify `backend/pyproject.toml`: Argon2 and Alembic dependencies.
 - Modify `backend/app/models.py`: user, session, login-attempt models, and game owner relation.
 - Modify `backend/app/schemas.py`: auth payload and user schemas.
-- Modify `backend/app/db.py`: configurable PostgreSQL/SQLite engine creation.
+- Modify `backend/app/db.py`: testable SQLite engine creation.
 - Modify `backend/app/main.py`: auth router, CORS credentials, and CSRF middleware/configuration.
 - Modify `backend/app/api/games.py` and `backend/app/repository.py`: authenticated ownership-aware operations.
 - Modify `backend/tests/conftest.py`: isolated auth test database setup and helpers.
@@ -46,63 +48,52 @@
 
 ---
 
-### Task 1: Add authentication dependencies and database configuration
+### Task 1: Add authentication dependencies and drop PostgreSQL configuration
+
+> **Revised:** this task originally added PostgreSQL support (commit `2d21f80`). Per the updated design decision (SQLite stays; see spec section 1), this task now removes the PostgreSQL-specific pieces of that commit while keeping Alembic and Argon2.
 
 **Files:**
 - Modify: `backend/pyproject.toml`
 - Modify: `backend/app/db.py`
-- Modify: `backend/tests/conftest.py`
+- Modify: `backend/tests/test_main.py`
 - Modify: `docker-compose.yml`
 - Modify: `render.yaml`
-- Test: `backend/tests/test_main.py`
 
 **Interfaces:**
-- Produces `create_app_engine(database_url: str | None = None) -> Engine` in `app.db`.
-- `DATABASE_URL` is read from the environment; `postgres://` is normalized to `postgresql+psycopg://`.
+- Produces `create_app_engine(database_url: str | None = None) -> Engine` in `app.db`, SQLite only.
+- `database_url()` returns the configured SQLite URL; no PostgreSQL normalization.
 - Existing `get_session()` continues to yield a SQLModel `Session`.
 
-- [ ] **Step 1: Write the failing configuration tests**
+- [x] **Step 1–4 (superseded):** original PostgreSQL dependency/config work is already committed as `2d21f80`; steps below undo the PostgreSQL-specific parts.
 
-Add tests for SQLite fallback and PostgreSQL URL normalization without opening a live PostgreSQL connection:
+- [ ] **Step 5: Remove `psycopg[binary]` and PostgreSQL URL handling**
 
-```python
-def test_database_url_defaults_to_sqlite(monkeypatch):
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    assert str(db.database_url()).startswith("sqlite")
+Drop `psycopg[binary]` from `backend/pyproject.toml`. Remove `_normalize_database_url`'s `postgres://` handling from `backend/app/db.py`, keeping `database_url()` and `create_app_engine()` as SQLite-only helpers so tests can still create isolated engines.
 
-def test_postgres_url_is_normalized(monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", "postgres://user:pass@host/db")
-    assert db.database_url() == "postgresql+psycopg://user:pass@host/db"
-```
+- [ ] **Step 6: Update tests**
 
-- [ ] **Step 2: Run the focused tests and verify failure**
+Remove `test_postgres_url_is_normalized` from `backend/tests/test_main.py`; keep `test_database_url_defaults_to_sqlite`.
 
-Run: `backend/.venv/bin/pytest backend/tests/test_main.py -q`
+- [ ] **Step 7: Remove PostgreSQL references from deployment config**
 
-Expected: FAIL because `database_url` and the new dependency configuration do not exist.
+Remove the `DATABASE_URL` env var from `render.yaml` (SQLite path comes from the existing mounted disk, no external URL needed). Remove the optional `DATABASE_URL` PostgreSQL comment/env passthrough from `docker-compose.yml`.
 
-- [ ] **Step 3: Add dependencies and configurable engine creation**
-
-Add `alembic`, `argon2-cffi`, and `psycopg[binary]` to the backend dependencies. Implement `database_url()` and `create_app_engine()`, preserving SQLite's `check_same_thread=False` and using the PostgreSQL URL for Render. Keep module-level `engine` and `get_session()` behavior compatible with current tests.
-
-- [ ] **Step 4: Run the focused tests and the existing backend suite**
+- [ ] **Step 8: Run the existing backend suite**
 
 Run: `backend/.venv/bin/pytest backend/tests/test_main.py backend/tests/engine -q`
 
 Expected: PASS; no engine behavior changes.
 
-- [ ] **Step 5: Add environment keys to local and Render configuration**
-
-Add `DATABASE_URL` as an unset/sync-required variable in `render.yaml`, and document the optional local value in `docker-compose.yml` without committing credentials.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add backend/pyproject.toml backend/app/db.py backend/tests/test_main.py backend/tests/conftest.py docker-compose.yml render.yaml
-git commit -m "build: configure postgres authentication dependencies"
+git add backend/pyproject.toml backend/app/db.py backend/tests/test_main.py docker-compose.yml render.yaml
+git commit -m "build: drop postgres, keep sqlite for auth backend"
 ```
 
 ### Task 2: Add user, session, and login-attempt models with Alembic migration
+
+> **Note:** this task is already committed (`4417cbc`) and is DB-agnostic (no PostgreSQL-specific SQL), so it needs no rework for the SQLite decision. `backend/migrations/env.py` should additionally set `render_as_batch=True` in both `context.configure()` calls so future column alterations/drops work under SQLite's limited `ALTER TABLE` support — add this in a small follow-up commit before Task 8.
 
 **Files:**
 - Modify: `backend/app/models.py`
@@ -390,33 +381,38 @@ git commit -m "feat: protect frontend game routes"
 - Modify: `render.yaml`
 - Modify: `docker-compose.yml`
 - Modify: `README.md`
+- Modify: `CLAUDE.md`
 - Modify: `backend/tests/test_main.py`
-- Create: `backend/tests/test_postgres_compatibility.py`
+- Modify: `backend/migrations/env.py`
 
 **Interfaces:**
-- Render backend receives `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, `SESSION_COOKIE_SECURE=true`, and `SESSION_COOKIE_SAMESITE=none`.
-- Alembic is the schema deployment command: `cd backend && alembic upgrade head`.
+- Render backend receives `CORS_ALLOWED_ORIGINS`, `SESSION_COOKIE_SECURE=true`, and `SESSION_COOKIE_SAMESITE=none`.
+- Alembic is the schema deployment command: `cd backend && alembic upgrade head`, applied to the SQLite file on the mounted disk.
 - `/health` remains unauthenticated and returns `{"status": "ok"}`.
 
 - [ ] **Step 1: Add deployment/configuration tests**
 
-Assert `/health` works without a cookie and that production settings reject wildcard CORS when credentials are enabled. Add a PostgreSQL URL parser test using a URL string only, without requiring a live database.
+Assert `/health` works without a cookie and that production settings reject wildcard CORS when credentials are enabled.
 
 - [ ] **Step 2: Run focused tests and verify failure**
 
-Run: `backend/.venv/bin/pytest backend/tests/test_main.py backend/tests/test_postgres_compatibility.py -q`
+Run: `backend/.venv/bin/pytest backend/tests/test_main.py -q`
 
 Expected: FAIL until deployment settings and validation are added.
 
 - [ ] **Step 3: Update Render and local container configuration**
 
-Add the PostgreSQL `DATABASE_URL` sync variable and session settings to `render.yaml`. Keep the frontend origin in `CORS_ALLOWED_ORIGINS`. Add documented local environment names to `docker-compose.yml` without secrets.
+Add the session cookie settings to `render.yaml`. Keep the frontend origin in `CORS_ALLOWED_ORIGINS`. No `DATABASE_URL` is needed since SQLite continues to live on the existing mounted disk.
 
-- [ ] **Step 4: Update operational documentation**
+- [ ] **Step 4: Enable SQLite-safe Alembic migrations**
 
-Document account creation, login, PostgreSQL provisioning, `alembic upgrade head`, required Render environment variables, cookie/CORS requirements, and the fact that old SQLite games are not automatically assigned to users.
+Set `render_as_batch=True` in both `context.configure()` calls in `backend/migrations/env.py` (per the Task 2 note) so future migrations that alter or drop columns work under SQLite.
 
-- [ ] **Step 5: Run full verification**
+- [ ] **Step 5: Update operational documentation**
+
+Document account creation, login, `alembic upgrade head` against the SQLite file, required Render environment variables, cookie/CORS requirements, and the fact that old SQLite games are not automatically assigned to users. Update `CLAUDE.md`'s "no migration tool" note in Backend Coding Standards to reflect that Alembic now manages schema changes.
+
+- [ ] **Step 6: Run full verification**
 
 Run:
 
@@ -428,14 +424,14 @@ cd ../backend && alembic check
 
 Expected: all backend and frontend tests pass, frontend builds, and Alembic reports no pending model changes.
 
-- [ ] **Step 6: Perform manual Render smoke test**
+- [ ] **Step 7: Perform manual Render smoke test**
 
 In the deployed HTTPS environment, register two accounts, verify session persistence after refresh, create a game as account A, confirm account B cannot list or access it, verify a turn can be submitted by A, log out, and confirm protected requests return to `/login`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add render.yaml docker-compose.yml README.md backend/tests/test_main.py backend/tests/test_postgres_compatibility.py
+git add render.yaml docker-compose.yml README.md CLAUDE.md backend/tests/test_main.py backend/migrations/env.py
 git commit -m "docs: configure render auth deployment"
 ```
 

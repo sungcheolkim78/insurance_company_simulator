@@ -4,7 +4,9 @@
 
 보험회사 운영 시뮬레이션에 일반 회원 시스템을 추가한다. 사용자는 이메일과 비밀번호로 가입·로그인하고, 자신의 여러 기기에서 게임 기록을 이어서 플레이할 수 있어야 한다. 로그인하지 않은 사용자는 게임 데이터와 게임 진행 API에 접근할 수 없어야 한다.
 
-이 기능은 기존의 전역 게임 목록 구조를 사용자별 게임 소유권 구조로 변경한다. 인증은 FastAPI 서버 세션과 HttpOnly 쿠키를 사용하고, 운영 데이터베이스는 Render PostgreSQL로 전환한다.
+이 기능은 기존의 전역 게임 목록 구조를 사용자별 게임 소유권 구조로 변경한다. 인증은 FastAPI 서버 세션과 HttpOnly 쿠키를 사용한다. 데이터베이스는 기존 SQLite(Render 영구 디스크에 저장)를 유지하고, 사용자 데이터가 생기는 시점부터 무손실 스키마 변경이 필요하므로 Alembic 마이그레이션을 새로 도입한다.
+
+> **PostgreSQL 미도입 결정:** 초기 설계에서는 PostgreSQL 전환을 고려했으나, 현재 Render 배포가 단일 인스턴스이고(`render.yaml`에 오토스케일 설정 없음) `/app/data`에 영구 디스크가 이미 마운트되어 SQLite 데이터가 재배포 후에도 유지되므로, 다중 인스턴스 일관성이나 재배포 시 데이터 유실 같은 PostgreSQL 도입의 주된 근거가 현재 배포 구조에는 해당하지 않는다. 반면 별도 DB 서비스, 드라이버, 연결 문자열 정규화가 추가하는 로컬 개발·운영 복잡도는 실질적이다. 따라서 SQLite를 유지하고, 실사용자 데이터가 스키마 변경에도 안전하게 살아남도록 Alembic만 도입한다. 향후 다중 인스턴스 배포나 쓰기 경합이 실제로 문제가 되면 그때 PostgreSQL 전환을 재검토한다.
 
 ## 2. 목표와 범위
 
@@ -15,7 +17,7 @@
 - 사용자별 게임 생성·조회·진행·삭제
 - 여러 기기에서 동일 계정으로 게임 이어하기
 - Render 공개 배포 환경에서 안전한 쿠키 인증
-- SQLite에서 PostgreSQL로의 명시적인 스키마 마이그레이션
+- Alembic 기반의 무손실 스키마 마이그레이션 도입 (SQLite 유지)
 
 ### 1차 범위에 포함하지 않는 것
 
@@ -43,8 +45,8 @@
 - `app/auth.py`: 비밀번호 해시, 세션 토큰 생성·해시, 현재 사용자 의존성
 - `app/api/auth.py`: 회원가입·로그인·로그아웃·현재 사용자 API
 - `app/api/games.py`: 모든 게임 엔드포인트에 현재 사용자 및 소유권 검사 적용
-- `app/db.py`: PostgreSQL URL 처리 및 테스트 가능한 엔진 초기화
-- Alembic: 운영 및 개발 DB 스키마 마이그레이션
+- `app/db.py`: 테스트 가능한 엔진 초기화 (SQLite 유지)
+- Alembic: 운영 및 개발 DB 스키마 마이그레이션 (SQLite 대상, 향후 컬럼 변경/삭제를 대비해 batch 모드 사용)
 
 게임 엔진(`backend/app/engine/`)은 인증이나 데이터베이스를 import하지 않는다. 인증과 소유권 검사는 API 계층에서 수행하고, 게임 생성·진행의 DB 반영은 기존 repository 계층을 유지한다.
 
@@ -85,7 +87,7 @@
 
 ### login_attempts
 
-로그인 무차별 대입을 제한하기 위해 실패 시도도 PostgreSQL에 기록한다.
+로그인 무차별 대입을 제한하기 위해 실패 시도도 DB(SQLite)에 기록한다.
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
@@ -167,13 +169,12 @@ GET /auth/me
 Render 환경변수는 다음과 같다.
 
 ```text
-DATABASE_URL=<Render PostgreSQL internal or external URL>
 CORS_ALLOWED_ORIGINS=https://<frontend-host>
 SESSION_COOKIE_SECURE=true
 SESSION_COOKIE_SAMESITE=none
 ```
 
-PostgreSQL 연결 문자열의 `postgres://` 형식은 사용하는 드라이버가 요구하는 `postgresql://` 형식으로 정규화한다. 애플리케이션은 `DATABASE_URL`이 없을 때 로컬 개발용 SQLite를 사용할 수 있지만, Render 운영 환경에서는 PostgreSQL을 필수로 사용한다.
+데이터베이스는 로컬 개발과 Render 운영 환경 모두 SQLite를 사용한다. Render에서는 기존과 동일하게 `/app/data`에 마운트된 영구 디스크의 SQLite 파일을 사용하며, 별도의 `DATABASE_URL` 설정은 필요하지 않다.
 
 ## 9. 오류 처리와 보안 기준
 
@@ -183,7 +184,7 @@ PostgreSQL 연결 문자열의 `postgres://` 형식은 사용하는 드라이버
 - 비밀번호는 Argon2id 설정으로 해시한다.
 - 세션 토큰은 `secrets.token_urlsafe` 등 보안 난수로 생성한다.
 - 쿠키 인증을 사용하므로 상태 변경 요청에는 CSRF 방어를 추가한다. 1차 구현에서는 허용 origin 검사와 double-submit CSRF 토큰을 함께 사용한다.
-- 로그인 실패 횟수 제한은 `login_attempts` PostgreSQL 테이블을 사용한다. 동일 IP·이메일 조합의 최근 15분 실패 5회 초과를 429로 제한해 Render 다중 인스턴스에서도 동일하게 적용한다.
+- 로그인 실패 횟수 제한은 `login_attempts` 테이블(SQLite)을 사용한다. 동일 IP·이메일 조합의 최근 15분 실패 5회 초과를 429로 제한한다.
 - 계정 비활성화 시 모든 세션을 사용할 수 없게 한다.
 
 ## 10. 프론트엔드 상태와 라우팅
@@ -224,14 +225,14 @@ Axios의 전역 401 처리는 인증 요청 자체에는 재귀적으로 적용�
 
 ### 배포 확인
 
-- Render PostgreSQL 연결 및 Alembic upgrade
+- Render 영구 디스크의 SQLite 파일에 대해 `alembic upgrade head` 적용 확인
 - 프론트엔드 origin에서 쿠키가 실제 요청에 포함되는지 확인
 - HTTPS 환경에서 세션 쿠키 속성 확인
 - 재배포 후 사용자와 게임 데이터 유지 확인
 
 ## 12. 배포 및 전환 순서
 
-1. PostgreSQL과 `DATABASE_URL`을 Render에 생성한다.
+1. Render 백엔드 디스크(`/app/data`)의 기존 SQLite 파일 경로와 백업 여부를 확인한다.
 2. Alembic 초기 스키마와 인증·소유권 마이그레이션을 적용한다.
 3. 백엔드 인증 API 및 게임 소유권 검사를 배포한다.
 4. 프론트엔드 인증 화면과 라우트 가드를 배포한다.
@@ -244,5 +245,5 @@ Axios의 전역 401 처리는 인증 요청 자체에는 재귀적으로 적용�
 - 페이지 새로고침과 다른 기기에서도 로그인 상태가 복원된다.
 - 사용자는 자신의 게임만 보고 조작할 수 있다.
 - 로그아웃 이후 게임 API 접근이 차단된다.
-- Render PostgreSQL에 사용자·세션·게임 데이터가 재배포 후에도 유지된다.
+- Render 영구 디스크의 SQLite에 사용자·세션·게임 데이터가 재배포 후에도 유지된다.
 - 기존 시뮬레이션 계산 및 턴 진행 테스트가 동일하게 통과한다.
