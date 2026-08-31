@@ -12,11 +12,16 @@ from .db import init_db
 app = FastAPI(title="Insurance Company Simulator")
 
 _default_origins = "http://localhost:5173"
-allowed_origins = [
-    origin.strip()
-    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", _default_origins).split(",")
-    if origin.strip()
-]
+
+
+def parse_allowed_origins(raw: str) -> list[str]:
+    origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
+    if "*" in origins:
+        raise ValueError("CORS wildcard origin is forbidden because requests carry credentials")
+    return origins
+
+
+allowed_origins = parse_allowed_origins(os.environ.get("CORS_ALLOWED_ORIGINS", _default_origins))
 
 
 @app.middleware("http")

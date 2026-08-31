@@ -10,6 +10,10 @@ services:
       - backend-data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
+      # Local development runs over plain HTTP, so the session cookie stays
+      # non-Secure with SameSite=Lax (the app defaults). Only origins listed
+      # here may call the API with credentials.
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173
 
   frontend:
     build:

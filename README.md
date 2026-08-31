@@ -40,7 +40,15 @@
 7. 손익계산서(P&L) 및 재무상태표(B/S) 롤포워드 -> 순자산(Equity) 갱신
 ```
 
-### 3. 게임 종료 조건
+### 3. 회원 계정 및 게임 소유권
+
+- 이메일/비밀번호로 회원가입·로그인하며, 게임 데이터는 계정별로 소유·보호됩니다.
+- 로그인 상태는 30일 서버 세션 + `HttpOnly` 쿠키(`insurance_session`)로 유지되어, 새로고침이나 다른 기기에서도 이어서 플레이할 수 있습니다.
+- CSRF 방어를 위해 double-submit 토큰(`insurance_csrf` 쿠키 + `X-CSRF-Token` 헤더)을 사용하며, 상태 변경 요청(POST/PUT/PATCH/DELETE)에 필요합니다. 프론트엔드는 자동으로 첨부합니다.
+- 비밀번호는 Argon2id로 해시 저장되고, 로그인 실패는 15분/5회 제한(429)이 적용됩니다.
+- 스키마 변경은 Alembic 마이그레이션으로 관리됩니다 (아래 "DB 마이그레이션" 참고).
+
+### 4. 게임 종료 조건
 - **정상 종료 (`completed`)**: 게임 생성 시 설정한 최종 턴 수(`game_length_turns`, 1~600, 기본 120턴/10년) 완주 시 종료.
 - **파산 (`bankrupt`)**: 턴 종료 시점 순자산(자본총계) $\le$ 0 일 경우 즉시 파산 처리.
 - **점수**: 마지막 플레이 턴의 순자산(자본총계).
@@ -49,7 +57,7 @@
 
 ## 🛠 기술 스택 & 아키텍처
 
-- **Backend**: Python 3.11+, FastAPI, SQLModel (SQLAlchemy 2.0 + Pydantic), SQLite
+- **Backend**: Python 3.11+, FastAPI, SQLModel (SQLAlchemy 2.0 + Pydantic), SQLite, Alembic(마이그레이션), Argon2(`argon2-cffi`, 비밀번호 해시)
 - **Simulation Engine**: `backend/app/engine/` (DB/웹 의존성이 없는 순수 Python + NumPy 시뮬레이션 엔진, 계약서비스마진(CSM) 최초인식·롤포워드 포함)
 - **Frontend**: Vue 3 (Composition API), Vite, Tailwind CSS v4(보드게임 테마 디자인 토큰), Pinia, Vue Router, Chart.js (`vue-chartjs`), `vuedraggable`(대시보드 패널 드래그 재배치), `@phosphor-icons/vue`
 - **Containers**: Podman Compose / Docker Compose
@@ -77,11 +85,7 @@ docker-compose up --build
 podman-compose down
 ```
 
-> ⚠️ **DB 스키마 변경 시 주의**: 이 프로젝트에는 마이그레이션 도구가 없습니다. `init_db()`(`backend/app/db.py`)는 `SQLModel.metadata.create_all()`을 호출하는데, 이는 존재하지 않는 테이블만 새로 생성할 뿐 기존 테이블의 컬럼은 변경하지 않습니다. `backend/app/models.py`를 건드린 변경사항을 pull한 뒤에는 기존 DB를 반드시 재생성해야 합니다:
-> - 컨테이너 환경: `podman-compose down` 후 `podman volume rm <project>_backend-data` 실행, 그다음 `podman-compose up --build -d`
-> - 로컬 실행: `backend/data/simulator.db` 파일 삭제
->
-> 재생성하지 않으면 이전 스키마의 DB 파일에 접근하는 모든 요청이 500 에러를 반환합니다.
+> ⚠️ **DB 스키마 변경 시 주의**: 기존 테이블의 컬럼 변경/삭제는 `create_all()`이 처리하지 않으므로 **반드시 Alembic 마이그레이션**을 작성·적용해야 합니다 (`alembic revision --autogenerate` 후 `alembic upgrade head`). 위의 "DB 마이그레이션" 절을 참고하세요.
 
 ---
 
@@ -120,6 +124,41 @@ npm run dev
 npm run build
 ```
 
+첫 접속 시 `/register`에서 계정을 만든 뒤 로그인하면 홈 화면에서 새 게임을 만들거나 과거 기록을 이어서 플레이할 수 있습니다.
+
+---
+
+## 🗄 DB 마이그레이션 (Alembic)
+
+스키마는 Alembic으로 관리합니다. `init_db()`의 `create_all()`은 앱 시작 시 누락된 테이블을 채우는 역할만 하고, **기존 테이블의 컬럼 변경은 반드시 마이그레이션으로 수행**해야 합니다.
+
+```bash
+cd backend
+
+# 현재 버전 확인
+alembic current
+
+# 스키마를 최신으로 갱신 (로컬: backend/data/simulator.db, Render: /app/data의 SQLite 파일)
+alembic upgrade head
+
+# 모델과 DB 스키마가 일치하는지 검증
+alembic check
+```
+
+> 참고: 인증 기능 도입 이전에 생성된 기존 게임 데이터에는 소유자(`games.user_id`)가 없습니다. 소유자를 임의로 추정·배정하지 않으므로, 기존 게임이 있는 DB를 업그레이드하려면 데이터 이전을 먼저 수행해야 합니다(마이그레이션이 레거시 게임 행을 발견하면 의도적으로 실패하며 안내 메시지를 출력합니다). 개인 개발 DB는 그냥 삭제 후 재생성하는 것이 가장 간단합니다.
+
+---
+
+## 🔐 Render 배포 환경 변수
+
+| 변수 | 값 | 설명 |
+|---|---|---|
+| `CORS_ALLOWED_ORIGINS` | `https://<frontend-host>` | 정확한 프론트엔드 origin만 허용 (와일드카드 금지) |
+| `SESSION_COOKIE_SECURE` | `true` | HTTPS 환경에서만 쿠키 전송 |
+| `SESSION_COOKIE_SAMESITE` | `none` | 프론트엔드↔백엔드 크로스사이트 쿠키 허용 |
+
+배포 후 스키마 갱신은 Render shell에서 `cd backend && alembic upgrade head`를 실행합니다(영구 디스크의 SQLite 파일 대상). 재배포 후에도 사용자·세션·게임 데이터는 디스크의 SQLite에 유지됩니다.
+
 ---
 
 ## 🧪 테스트 실행
@@ -145,14 +184,20 @@ npm run test
 
 | 메서드 | 엔드포인트 | 설명 |
 |---|---|---|
-| `POST` | `/games` | 새 게임 생성 (`initial_capital`, `rng_seed`, `game_length_turns`) |
-| `GET` | `/games` | 저장된 게임 목록 조회 |
-| `GET` | `/games/{id}` | 특정 게임 상태 및 최신 재무 스냅샷 조회 |
-| `GET` | `/games/{id}/config` | 게임 기본 설정(상품 및 채널 메타데이터) 조회 |
-| `GET` | `/games/{id}/history` | 게임 전체 턴 재무 스냅샷 히스토리 조회 |
-| `POST` | `/games/{id}/turn` | 의사결정 제출 및 다음 턴(1턴) 진행 |
-| `DELETE` | `/games/{id}` | 게임 및 연관 데이터(코호트, 스냅샷 등) 삭제 |
-| `GET` | `/health` | 서버 상태 점검 |
+| `POST` | `/auth/register` | 회원가입 (이메일/비밀번호, 세션 발급) |
+| `POST` | `/auth/login` | 로그인 (세션 발급, 15분/5회 실패 제한) |
+| `POST` | `/auth/logout` | 로그아웃 (세션 무효화 및 쿠키 만료) |
+| `GET` | `/auth/me` | 현재 로그인 사용자 조회 (비로그인 401) |
+| `POST` | `/games` | 새 게임 생성 (로그인 필요) |
+| `GET` | `/games` | 내 게임 목록 조회 (로그인 필요) |
+| `GET` | `/games/{id}` | 게임 상태 및 최신 재무 스냅샷 조회 (소유자만) |
+| `GET` | `/games/{id}/config` | 게임 기본 설정(상품 및 채널 메타데이터) 조회 (소유자만) |
+| `GET` | `/games/{id}/history` | 게임 전체 턴 재무 스냅샷 히스토리 조회 (소유자만) |
+| `POST` | `/games/{id}/turn` | 의사결정 제출 및 다음 턴(1턴) 진행 (소유자만) |
+| `DELETE` | `/games/{id}` | 게임 및 연관 데이터 삭제 (소유자만) |
+| `GET` | `/health` | 서버 상태 점검 (인증 불필요) |
+
+게임 API는 로그인하지 않으면 `401`을 반환하고, 다른 사용자의 게임에 접근하면 존재 여부를 노출하지 않도록 `404`를 반환합니다.
 
 ---
 
@@ -162,23 +207,25 @@ npm run test
 insurance_company_simulator/
 ├── backend/                      # FastAPI 백엔드 & 시뮬레이션 엔진
 │   ├── app/
-│   │   ├── api/                  # REST API 라우터 (/games)
+│   │   ├── api/                  # REST API 라우터 (/games, /auth)
 │   │   ├── engine/               # 독립된 순수 Python 시뮬레이션 코어
+│   │   ├── auth.py               # 비밀번호 해시, 세션/CSRF, 현재 사용자 의존성
 │   │   ├── db.py                 # SQLite DB 세션 및 테이블 초기화
-│   │   ├── models.py             # SQLModel 엔티티 정의
+│   │   ├── models.py             # SQLModel 엔티티 정의 (사용자/세션/게임 등)
 │   │   ├── repository.py         # DB 트랜잭션 및 엔진 연동 레포지토리
 │   │   ├── schemas.py            # API 요청/응답 Pydantic 스키마
 │   │   └── main.py               # FastAPI 애플리케이션 진입점
+│   ├── migrations/               # Alembic 마이그레이션 (SQLite batch 모드)
 │   ├── tests/                    # pytest 테스트 스위트 (엔진 및 API)
 │   ├── pyproject.toml            # 파이썬 의존성 설정
 │   └── Dockerfile
 ├── frontend/                     # Vue 3 SPA 프론트엔드
 │   ├── src/
-│   │   ├── api/                  # Axios HTTP 클라이언트
+│   │   ├── api/                  # Axios HTTP 클라이언트 (세션 쿠키, CSRF 자동 첨부)
 │   │   ├── components/           # UI 컴포넌트 (의사결정 패널, 드래그 가능 패널, 재무제표, 모니터링, 차트, KPI 카드 등)
-│   │   ├── stores/               # Pinia 게임 상태 관리
-│   │   ├── utils/                # 대시보드 레이아웃 영속화 등 유틸리티
-│   │   ├── views/                # 화면 뷰 (게임 생성, 대시보드, 결과)
+│   │   ├── stores/               # Pinia 상태 관리 (게임, 인증)
+│   │   ├── utils/                # 대시보드 레이아웃·인증 라우트 가드 등 유틸리티
+│   │   ├── views/                # 화면 뷰 (게임 생성, 대시보드, 결과, 로그인, 회원가입)
 │   │   └── main.js
 │   ├── package.json
 │   ├── vite.config.js
