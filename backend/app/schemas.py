@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, field_validator
 
 PRODUCT_KEYS = {"whole_life", "savings"}
@@ -23,6 +25,8 @@ class GameSummary(BaseModel):
     current_turn: int
     status: str
     game_length_turns: int
+    created_at: datetime | None = None
+    equity: float | None = None
 
 
 class SnapshotResponse(BaseModel):

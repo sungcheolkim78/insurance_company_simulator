@@ -28,11 +28,15 @@ def test_create_game_rejects_game_length_turns_out_of_range(client):
 
 
 def test_list_games(client):
-    client.post("/games", json={})
-    client.post("/games", json={})
+    client.post("/games", json={"initial_capital": 5_000_000_000})
+    client.post("/games", json={"initial_capital": 8_000_000_000})
     response = client.get("/games")
     assert response.status_code == 200
-    assert len(response.json()) == 2
+    games = response.json()
+    assert len(games) == 2
+    assert games[0]["equity"] == 8_000_000_000
+    assert games[1]["equity"] == 5_000_000_000
+    assert "created_at" in games[0]
 
 
 def test_get_config(client):

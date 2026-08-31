@@ -43,11 +43,21 @@ def create_game(payload: CreateGameRequest, session: Session = Depends(get_sessi
 
 @router.get("", response_model=list[GameSummary])
 def list_games(session: Session = Depends(get_session)) -> list[GameSummary]:
-    games = session.exec(select(GameRow)).all()
-    return [
-        GameSummary(id=g.id, current_turn=g.current_turn, status=g.status, game_length_turns=g.game_length_turns)
-        for g in games
-    ]
+    games = session.exec(select(GameRow).order_by(GameRow.id.desc())).all()
+    results = []
+    for g in games:
+        snapshot = repository.latest_snapshot(session, g.id)
+        results.append(
+            GameSummary(
+                id=g.id,
+                current_turn=g.current_turn,
+                status=g.status,
+                game_length_turns=g.game_length_turns,
+                created_at=g.created_at,
+                equity=snapshot.equity if snapshot else None,
+            )
+        )
+    return results
 
 
 @router.get("/{game_id}", response_model=GameStateResponse)
