@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -8,10 +8,45 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class UserRow(SQLModel, table=True):
+    __tablename__ = "users"
+
+    id: int | None = Field(default=None, primary_key=True)
+    email: str = Field(unique=True)
+    password_hash: str
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=_utcnow, sa_column=Column(DateTime(timezone=True), nullable=False))
+    updated_at: datetime = Field(default_factory=_utcnow, sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class SessionRow(SQLModel, table=True):
+    __tablename__ = "sessions"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    token_hash: str = Field(unique=True, index=True)
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False, index=True))
+    created_at: datetime = Field(default_factory=_utcnow, sa_column=Column(DateTime(timezone=True), nullable=False))
+    last_used_at: datetime = Field(default_factory=_utcnow, sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class LoginAttemptRow(SQLModel, table=True):
+    __tablename__ = "login_attempts"
+
+    id: int | None = Field(default=None, primary_key=True)
+    normalized_email: str = Field(index=True)
+    client_ip: str = Field(index=True)
+    attempted_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
+    )
+
+
 class GameRow(SQLModel, table=True):
     __tablename__ = "games"
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
     rng_seed: int
     initial_capital: float
     current_turn: int

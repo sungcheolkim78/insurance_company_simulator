@@ -4,6 +4,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 import app.db as db
+from app import models as _models
 from app.db import get_session
 from app.main import app
 

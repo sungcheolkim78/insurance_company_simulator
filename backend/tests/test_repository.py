@@ -1,8 +1,11 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
+from sqlalchemy import inspect
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.engine.types import ChannelCode, Decision, ProductCode
-from app.models import GameRow
+from app.models import GameRow, LoginAttemptRow, SessionRow, UserRow
 from app.repository import apply_turn, create_game
 
 
@@ -30,6 +33,47 @@ def test_create_game_seeds_initial_snapshot():
     assert game.id is not None
     assert game.current_turn == 0
     assert game.status == "running"
+
+
+def test_auth_rows_and_owned_games_have_required_constraints():
+    """Schema creation must include auth tables and the required ownership constraints."""
+    session = make_session()
+    user = UserRow(email="player@example.com", password_hash="argon2-hash")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    auth_session = SessionRow(
+        user_id=user.id,
+        token_hash="hashed-session-token",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+    )
+    attempt = LoginAttemptRow(
+        normalized_email="player@example.com",
+        client_ip="203.0.113.4",
+    )
+    game = GameRow(
+        user_id=user.id,
+        rng_seed=42,
+        initial_capital=10_000_000_000.0,
+        current_turn=0,
+        status="running",
+    )
+    session.add_all([auth_session, attempt, game])
+    session.commit()
+
+    assert auth_session.user_id == user.id
+    assert game.user_id == user.id
+    assert attempt.normalized_email == "player@example.com"
+
+    inspector = inspect(session.get_bind())
+    assert {"users", "sessions", "login_attempts"} <= set(inspector.get_table_names())
+    assert {foreign_key["referred_table"] for foreign_key in inspector.get_foreign_keys("games")} == {"users"}
+    assert any(constraint["column_names"] == ["email"] for constraint in inspector.get_unique_constraints("users"))
+    assert any(
+        index["column_names"] == ["token_hash"] and index["unique"]
+        for index in inspector.get_indexes("sessions")
+    )
 
 
 def test_apply_turn_persists_snapshot_and_advances_game():
