@@ -20,6 +20,7 @@ services:
       # https://insurance-frontend.onrender.com (comma-separate multiple origins).
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+        value: https://insurance-backend-ykr2.onrender.com
     disk:
       name: backend-data
       mountPath: /app/data
@@ -38,6 +39,7 @@ services:
       # https://insurance-backend.onrender.com
       - key: VITE_API_BASE_URL
         sync: false
+        value: https://insurance-frontend-ozwt.onrender.com
     routes:
       # SPA fallback so vue-router's history mode works on deep links.
       - type: rewrite
