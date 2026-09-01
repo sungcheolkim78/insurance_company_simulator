@@ -44,7 +44,7 @@
 
 - 이메일/비밀번호로 회원가입·로그인하며, 게임 데이터는 계정별로 소유·보호됩니다.
 - 로그인 상태는 30일 서버 세션 + `HttpOnly` 쿠키(`insurance_session`)로 유지되어, 새로고침이나 다른 기기에서도 이어서 플레이할 수 있습니다.
-- CSRF 방어를 위해 double-submit 토큰(`insurance_csrf` 쿠키 + `X-CSRF-Token` 헤더)을 사용하며, 상태 변경 요청(POST/PUT/PATCH/DELETE)에 필요합니다. 프론트엔드는 자동으로 첨부합니다.
+- CSRF 방어: 상태 변경 요청(POST/PUT/PATCH/DELETE)에는 브라우저가 위조할 수 없는 `Origin` 헤더가 `CORS_ALLOWED_ORIGINS`에 포함되어야 합니다. `Origin`이 없는 API 클라이언트는 `insurance_csrf` 쿠키 + `X-CSRF-Token` 헤더 더블서브밋이 필요합니다 (프론트엔드는 로컬처럼 같은 호스트에서 쿠키를 읽을 수 있을 때 자동 첨부).
 - 비밀번호는 Argon2id로 해시 저장되고, 로그인 실패는 15분/5회 제한(429)이 적용됩니다.
 - 스키마 변경은 Alembic 마이그레이션으로 관리됩니다 (아래 "DB 마이그레이션" 참고).
 

@@ -184,6 +184,7 @@ SESSION_COOKIE_SAMESITE=none
 - 비밀번호는 Argon2id 설정으로 해시한다.
 - 세션 토큰은 `secrets.token_urlsafe` 등 보안 난수로 생성한다.
 - 쿠키 인증을 사용하므로 상태 변경 요청에는 CSRF 방어를 추가한다. 1차 구현에서는 허용 origin 검사와 double-submit CSRF 토큰을 함께 사용한다.
+  - **운영 참고:** 프론트엔드와 백엔드가 다른 도메인(Render static + web)인 경우 브라우저 JS는 백엔드 도메인의 CSRF 쿠키를 `document.cookie`로 읽을 수 없다. 따라서 허용 origin 검사가 주 방어선이고, double-submit 토큰은 `Origin` 헤더가 없는 API 클라이언트 요청(로컬 개발 포함)에 적용된다.
 - 로그인 실패 횟수 제한은 `login_attempts` 테이블(SQLite)을 사용한다. 동일 IP·이메일 조합의 최근 15분 실패 5회 초과를 429로 제한한다.
 - 계정 비활성화 시 모든 세션을 사용할 수 없게 한다.
 

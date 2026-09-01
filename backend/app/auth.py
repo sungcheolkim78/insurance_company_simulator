@@ -85,20 +85,22 @@ def issue_csrf_cookie(request: Request, response: Response) -> None:
     )
 
 
-def _check_origin(request: Request) -> None:
-    origin = request.headers.get("origin")
-    if not origin:
-        return
-    from .main import allowed_origins
-
-    if origin not in allowed_origins:
-        raise HTTPException(status_code=403, detail="Origin not allowed")
-
-
 def require_csrf(request: Request) -> None:
     if request.method not in UNSAFE_METHODS:
         return
-    _check_origin(request)
+    # Browsers always attach a truthful Origin header to unsafe requests and JS
+    # cannot forge it, so a known origin is sufficient protection. The
+    # double-submit token below stays as the defense for cookie-bearing
+    # requests that lack Origin (API clients); it cannot be enforced for the
+    # deployed cross-site frontend because document.cookie cannot read the
+    # API host's cookies there.
+    origin = request.headers.get("origin")
+    if origin:
+        from .main import allowed_origins
+
+        if origin not in allowed_origins:
+            raise HTTPException(status_code=403, detail="Origin not allowed")
+        return
     header = request.headers.get(CSRF_HEADER_NAME)
     cookie = request.cookies.get(CSRF_COOKIE_NAME)
     if not cookie or not header or not secrets.compare_digest(header.encode(), cookie.encode()):

@@ -231,4 +231,4 @@ pytest -v
 | `DELETE` | `/games/{id}` | Delete game and all related records (owner only) |
 | `GET` | `/health` | Healthcheck endpoint |
 
-Game APIs return `401` when unauthenticated and `404` (not `403`) when an authenticated user requests another user's game, so game existence is not leaked. Unsafe requests (POST/PUT/PATCH/DELETE) require the double-submit CSRF header `X-CSRF-Token` matching the `insurance_csrf` cookie.
+Game APIs return `401` when unauthenticated and `404` (not `403`) when an authenticated user requests another user's game, so game existence is not leaked. Unsafe requests (POST/PUT/PATCH/DELETE) are CSRF-protected: a browser-sent `Origin` header must be in `CORS_ALLOWED_ORIGINS` (browsers cannot forge it); requests without an `Origin` (API clients) require the double-submit header `X-CSRF-Token` matching the `insurance_csrf` cookie.

@@ -233,6 +233,19 @@ def test_unsafe_request_from_disallowed_origin_is_rejected(raw_client):
     assert response.status_code == 403
 
 
+def test_unsafe_request_from_allowed_origin_passes_without_token(raw_client):
+    # The deployed frontend is cross-site and cannot read the API host's CSRF
+    # cookie, so the browser-sent Origin header is the protection there.
+    response = raw_client.post("/health", headers={"Origin": "http://localhost:5173"})
+    assert response.status_code == 405
+
+
+def test_unsafe_request_without_origin_still_requires_token(raw_client):
+    # API clients (no Origin header) must present the double-submit token.
+    response = raw_client.post("/health")
+    assert response.status_code == 403
+
+
 def test_safe_requests_do_not_require_csrf_token(raw_client):
     response = raw_client.get("/health")
     assert response.status_code == 200
